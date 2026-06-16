@@ -329,7 +329,7 @@ export default function Dashboard({ onNavigate }) {
       <section className="dash-section">
         <h2 className="dash-section-title">🕒 Actividad Reciente</h2>
         <div className="dash-recent-list">
-          {ordenes
+          {[...ordenes]
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
             .slice(0, 8)
             .map(o => (

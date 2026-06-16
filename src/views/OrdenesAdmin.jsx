@@ -5,9 +5,12 @@ import './OrdenesAdmin.css';
 
 export default function OrdenesAdmin({ onNavigate }) {
   const { ordenes, mecanicos, updateOrden, aprobarSolicitud, rechazarSolicitud, asignarMecanico } = useApp();
-  const [selectedOrden, setSelectedOrden] = useState(null);
+  const [selectedOrdenId, setSelectedOrdenId] = useState(null);
   const [filterEstado, setFilterEstado] = useState('todos');
   const [search, setSearch] = useState('');
+
+  // Always derive selectedOrden from live ordenes state (fixes stale reference bug)
+  const selectedOrden = selectedOrdenId ? ordenes.find(o => o.id === selectedOrdenId) : null;
 
   const filteredOrdenes = ordenes.filter(o => {
     // Tipo filter
@@ -53,22 +56,15 @@ export default function OrdenesAdmin({ onNavigate }) {
   const internasCount = ordenes.filter(o => o.tipo === 'interna').length;
 
   const handleCardClick = (orden) => {
-    setSelectedOrden(selectedOrden?.id === orden.id ? null : orden);
+    setSelectedOrdenId(selectedOrdenId === orden.id ? null : orden.id);
   };
 
   const handleEstadoChange = (ordenId, estado) => {
     updateOrden(ordenId, { estado });
-    // Update the selectedOrden reference
-    setSelectedOrden(prev => prev?.id === ordenId ? { ...prev, estado } : prev);
   };
 
   const handleAsignarMecanico = (ordenId, mecId) => {
     asignarMecanico(ordenId, mecId);
-    const mec = mecanicos.find(m => m.id === mecId);
-    setSelectedOrden(prev => prev?.id === ordenId
-      ? { ...prev, mecanicoId: mecId, mecanicoNombre: mec?.nombre || null }
-      : prev
-    );
   };
 
   return (

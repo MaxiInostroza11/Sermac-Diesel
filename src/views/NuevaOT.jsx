@@ -8,12 +8,14 @@ export default function NuevaOT({ onNavigate }) {
 
   const nextNumber = getNextOtNumber();
   const [showPreview, setShowPreview] = useState(false);
+  const [ingresoLab, setIngresoLab] = useState(false);
 
   const [form, setForm] = useState({
     clienteNombre: '',
     clienteTelefono: '',
     marcaModelo: '',
     patenteVehiculo: '',
+    descripcionComponente: '',
     observaciones: '',
     mecanicoId: '',
     mecanicoNombre: '',
@@ -87,23 +89,32 @@ export default function NuevaOT({ onNavigate }) {
     }));
   };
 
-  const isValid = form.clienteNombre.trim() && form.marcaModelo.trim() && form.servicios.length > 0;
+  const isValid = form.clienteNombre.trim() && (ingresoLab ? form.descripcionComponente.trim() : form.marcaModelo.trim()) && form.servicios.length > 0;
 
   const handleSubmit = () => {
     if (!isValid) return;
-    createOrden(form);
-    // Reset form for next O.T.
+    const ordenData = { ...form };
+    if (ingresoLab) {
+      ordenData.marcaModelo = form.descripcionComponente || 'Componente directo';
+      ordenData.tipo = 'laboratorio_directo';
+    }
+    createOrden(ordenData);
+    // Reset form
     setForm({
       clienteNombre: '',
       clienteTelefono: '',
       marcaModelo: '',
       patenteVehiculo: '',
+      descripcionComponente: '',
       observaciones: '',
       mecanicoId: '',
       mecanicoNombre: '',
       servicios: [{ sistema: 'inyector', cantidad: 4, especificar: '' }],
     });
+    setIngresoLab(false);
     setShowPreview(false);
+    // Redirect to ordenes so user sees the new OT
+    onNavigate('ordenes');
   };
 
   const getSistemaLabel = (value) => {
@@ -167,31 +178,59 @@ export default function NuevaOT({ onNavigate }) {
             </div>
           </div>
 
-          <h2 className="form-section-title" style={{ marginTop: 'var(--space-6)' }}>🚗 Vehículo</h2>
-
-          <div className="form-row">
-            <div className="input-group" style={{ flex: 2 }}>
-              <label className="input-label">Marca / Modelo *</label>
+          {/* Lab direct toggle */}
+          <div className="lab-toggle-row">
+            <label className="lab-toggle">
               <input
-                type="text"
-                className="input"
-                placeholder="Ej: Mazda BT-50 2020"
-                value={form.marcaModelo}
-                onChange={(e) => updateField('marcaModelo', e.target.value)}
+                type="checkbox"
+                checked={ingresoLab}
+                onChange={(e) => setIngresoLab(e.target.checked)}
               />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Patente</label>
-              <input
-                type="text"
-                className="input"
-                placeholder="Ej: ABCD12"
-                value={form.patenteVehiculo}
-                onChange={(e) => updateField('patenteVehiculo', e.target.value.toUpperCase())}
-                maxLength={8}
-              />
-            </div>
+              <span className="lab-toggle-slider"></span>
+              <span className="lab-toggle-label">🔬 Ingreso directo a laboratorio (sin vehículo)</span>
+            </label>
           </div>
+
+          <h2 className="form-section-title" style={{ marginTop: 'var(--space-6)' }}>
+            {ingresoLab ? '🔬 Componente' : '🚗 Vehículo'}
+          </h2>
+
+          {ingresoLab ? (
+            <div className="input-group">
+              <label className="input-label">Descripción del componente *</label>
+              <input
+                type="text"
+                className="input"
+                placeholder="Ej: 4 Inyectores Common Rail Bosch, Bomba VP44..."
+                value={form.descripcionComponente}
+                onChange={(e) => updateField('descripcionComponente', e.target.value)}
+              />
+            </div>
+          ) : (
+            <div className="form-row">
+              <div className="input-group" style={{ flex: 2 }}>
+                <label className="input-label">Marca / Modelo *</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Ej: Mazda BT-50 2020"
+                  value={form.marcaModelo}
+                  onChange={(e) => updateField('marcaModelo', e.target.value)}
+                />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Patente</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Ej: ABCD12"
+                  value={form.patenteVehiculo}
+                  onChange={(e) => updateField('patenteVehiculo', e.target.value.toUpperCase())}
+                  maxLength={8}
+                />
+              </div>
+            </div>
+          )}
 
           <h2 className="form-section-title" style={{ marginTop: 'var(--space-6)' }}>🔧 Servicios</h2>
 
@@ -326,8 +365,8 @@ export default function NuevaOT({ onNavigate }) {
                     <span className="preview-value">{form.clienteTelefono || '—'}</span>
                   </div>
                   <div className="preview-field">
-                    <span className="preview-label">Vehículo</span>
-                    <span className="preview-value">{form.marcaModelo}</span>
+                    <span className="preview-label">{ingresoLab ? 'Componente' : 'Vehículo'}</span>
+                    <span className="preview-value">{ingresoLab ? form.descripcionComponente : form.marcaModelo}</span>
                   </div>
                   {form.patenteVehiculo && (
                     <div className="preview-field">

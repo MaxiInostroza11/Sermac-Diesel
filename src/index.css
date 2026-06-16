@@ -598,7 +598,8 @@ tr:hover td {
   width: 100%;
   max-width: 560px;
   max-height: 90vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   box-shadow: var(--shadow-xl);
   animation: modalSlideUp 0.3s ease;
 }
@@ -624,6 +625,9 @@ tr:hover td {
 
 .modal-body {
   padding: var(--space-6);
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .modal-footer {

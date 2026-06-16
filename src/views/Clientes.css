@@ -69,6 +69,12 @@
   margin-top: var(--space-1);
 }
 
+.cliente-rut {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-family: monospace;
+}
+
 .cliente-meta {
   display: flex;
   flex-direction: column;
@@ -94,7 +100,7 @@
 
 .cliente-detail-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-4);
 }
 
@@ -110,6 +116,11 @@
   font-size: var(--font-size-2xl);
   color: white;
   flex-shrink: 0;
+}
+
+.cliente-detail-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .cliente-detail-header h2 {
@@ -146,5 +157,28 @@
 
   .cliente-detail-panel {
     position: static;
+  }
+
+  .cliente-item {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  .cliente-avatar {
+    width: 38px;
+    height: 38px;
+    font-size: var(--font-size-base);
+  }
+
+  .cliente-detail-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cliente-detail-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: var(--font-size-xl);
   }
 }

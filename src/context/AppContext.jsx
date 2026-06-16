@@ -308,6 +308,30 @@ export function AppProvider({ children }) {
     ));
   }, []);
 
+  const deleteRepuesto = useCallback((repuestoId) => {
+    setRepuestos(prev => prev.filter(r => r.id !== repuestoId));
+    addNotification('info', 'Repuesto eliminado del inventario');
+  }, []);
+
+  // --- Clientes CRUD ---
+  const addCliente = useCallback((clienteData) => {
+    const newCliente = {
+      ...clienteData,
+      id: `c_${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    setClientes(prev => [...prev, newCliente]);
+    addNotification('success', `Cliente "${clienteData.nombre}" registrado`);
+    return newCliente;
+  }, []);
+
+  const updateCliente = useCallback((clienteId, updates) => {
+    setClientes(prev => prev.map(c =>
+      c.id === clienteId ? { ...c, ...updates } : c
+    ));
+    addNotification('success', 'Datos del cliente actualizados');
+  }, []);
+
   // --- Fotos ---
   const agregarFoto = useCallback((ordenId, fotoData) => {
     setOrdenes(prev => prev.map(o => {
@@ -389,6 +413,10 @@ export function AppProvider({ children }) {
     rechazarSolicitud,
     addRepuesto,
     updateRepuesto,
+    deleteRepuesto,
+    // Cliente actions
+    addCliente,
+    updateCliente,
     // Notifications
     notifications,
     addNotification,

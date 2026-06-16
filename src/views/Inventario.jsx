@@ -3,10 +3,11 @@ import { useApp } from '../context/AppContext';
 import './Inventario.css';
 
 export default function Inventario() {
-  const { repuestos, addRepuesto, updateRepuesto } = useApp();
+  const { repuestos, addRepuesto, updateRepuesto, deleteRepuesto } = useApp();
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [form, setForm] = useState({ codigo: '', nombre: '', modelo: '', stock: 0, stockMinimo: 4 });
 
   const filtered = repuestos.filter(r => {
@@ -29,11 +30,26 @@ export default function Inventario() {
 
   const handleSave = () => {
     if (!form.nombre.trim() || !form.codigo.trim()) return;
+    // Duplicate code validation (only for new items or if code changed)
+    if (!editItem || editItem.codigo !== form.codigo) {
+      const duplicate = repuestos.find(r => r.codigo === form.codigo && r.id !== editItem?.id);
+      if (duplicate) {
+        alert(`⚠️ Ya existe un repuesto con el código "${form.codigo}" (${duplicate.nombre})`);
+        return;
+      }
+    }
     if (editItem) {
       updateRepuesto(editItem.id, form);
     } else {
       addRepuesto(form);
     }
+    setShowModal(false);
+  };
+
+  const handleDelete = () => {
+    if (!editItem) return;
+    deleteRepuesto(editItem.id);
+    setShowDeleteConfirm(false);
     setShowModal(false);
   };
 
@@ -136,10 +152,37 @@ export default function Inventario() {
               </div>
             </div>
             <div className="modal-footer">
+              {editItem && (
+                <button className="btn btn-danger btn-sm" onClick={() => setShowDeleteConfirm(true)}>
+                  🗑️ Eliminar
+                </button>
+              )}
+              <div style={{ flex: 1 }}></div>
               <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancelar</button>
               <button className="btn btn-primary btn-lg" onClick={handleSave}
                 disabled={!form.nombre.trim() || !form.codigo.trim()}>
                 {editItem ? '💾 Guardar Cambios' : '➕ Agregar Repuesto'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⚠️ Confirmar eliminación</h2>
+            </div>
+            <div className="modal-body">
+              <p>¿Estás seguro de eliminar <strong>{editItem?.nombre} ({editItem?.modelo})</strong> del inventario?</p>
+              <p className="text-sm text-tertiary" style={{ marginTop: 'var(--space-2)' }}>Esta acción no se puede deshacer.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setShowDeleteConfirm(false)}>Cancelar</button>
+              <button className="btn btn-danger btn-lg" onClick={handleDelete}>
+                🗑️ Sí, eliminar
               </button>
             </div>
           </div>
