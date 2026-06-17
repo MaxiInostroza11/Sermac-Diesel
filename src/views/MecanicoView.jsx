@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ACTIVIDADES_RAPIDAS, NIVELES_COMBUSTIBLE, MAX_TRABAJOS_ACTIVOS } from '../data/mockData';
 import './MecanicoView.css';
@@ -14,10 +14,16 @@ export default function MecanicoView() {
   const [selectedOT, setSelectedOT] = useState(null);
   const [showRepuestoModal, setShowRepuestoModal] = useState(false);
   const [showLabModal, setShowLabModal] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [labDescripcion, setLabDescripcion] = useState('');
   const [repuestoForm, setRepuestoForm] = useState({ repuestoId: '', cantidad: 1 });
   const [notaTexto, setNotaTexto] = useState('');
+  const [historialFiltro, setHistorialFiltro] = useState('semana');
+  const [takenJobId, setTakenJobId] = useState(null);
   const fotoInputRef = useRef(null);
+
+  // Derive selectedOrden from live state (fixes stale reference bug)
+  const selectedOrden = selectedOT ? ordenes.find(o => o.id === selectedOT) : null;
 
   const misTrabajos = ordenes.filter(o =>
     o.mecanicoId === currentUser?.id && o.estado !== 'terminada'
@@ -30,22 +36,64 @@ export default function MecanicoView() {
   const trabajosActivos = getTrabajosMecanico(currentUser?.id);
   const alMaximo = trabajosActivos.length >= MAX_TRABAJOS_ACTIVOS;
 
+  // Completed jobs with time filter
+  const misCompletados = useMemo(() => {
+    const now = new Date();
+    const filtered = ordenes.filter(o =>
+      o.mecanicoId === currentUser?.id && o.estado === 'terminada'
+    );
+
+    const cutoff = new Date();
+    switch (historialFiltro) {
+      case 'hoy':
+        cutoff.setHours(0, 0, 0, 0);
+        break;
+      case 'semana':
+        cutoff.setDate(now.getDate() - 7);
+        break;
+      case 'mes':
+        cutoff.setMonth(now.getMonth() - 1);
+        break;
+      case 'todos':
+        return filtered.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+      default:
+        cutoff.setDate(now.getDate() - 7);
+    }
+
+    return filtered
+      .filter(o => new Date(o.updatedAt) >= cutoff)
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  }, [ordenes, currentUser, historialFiltro]);
+
   const getSistemaLabel = (s) => {
     const labels = { inyector: 'Inyector', bomba: 'Bomba', turbo: 'Turbo', dpf: 'DPF', vehiculo_completo: 'Vehículo', otro: 'Otro' };
     return labels[s] || s;
   };
 
   const formatTime = (d) => new Date(d).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  const formatDate = (d) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   const handleTomarTrabajo = (ordenId) => {
-    tomarTrabajo(ordenId);
+    const result = tomarTrabajo(ordenId);
+    if (result) {
+      setTakenJobId(ordenId);
+      setTimeout(() => setTakenJobId(null), 600);
+    }
   };
 
   const handleCambiarEstado = (ordenId, nuevoEstado) => {
-    updateOrden(ordenId, { estado: nuevoEstado });
     if (nuevoEstado === 'terminada') {
-      setSelectedOT(null);
+      setShowFinishConfirm(true);
+      return;
     }
+    updateOrden(ordenId, { estado: nuevoEstado });
+  };
+
+  const handleConfirmFinish = () => {
+    if (!selectedOrden) return;
+    updateOrden(selectedOrden.id, { estado: 'terminada' });
+    setShowFinishConfirm(false);
+    setSelectedOT(null);
   };
 
   const handleToggleActividad = (ordenId, tipo) => {
@@ -85,8 +133,6 @@ export default function MecanicoView() {
     setLabDescripcion('');
     setShowLabModal(false);
   };
-
-  const selectedOrden = selectedOT ? ordenes.find(o => o.id === selectedOT) : null;
 
   return (
     <div className="mecanico-view">
@@ -142,6 +188,12 @@ export default function MecanicoView() {
                       </span>
                     </div>
                     <p className="mec-job-vehicle">{orden.marcaModelo}</p>
+                    <div className="mec-job-client-row">
+                      <span className="mec-job-client">👤 {orden.clienteNombre || '—'}</span>
+                      {orden.patenteVehiculo && (
+                        <span className="mec-job-patente">{orden.patenteVehiculo}</span>
+                      )}
+                    </div>
                     <p className="mec-job-service">
                       {orden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
                     </p>
@@ -174,7 +226,10 @@ export default function MecanicoView() {
             ) : (
               <div className="mec-inbox-list">
                 {trabajosDisponibles.map(orden => (
-                  <div key={orden.id} className="mec-inbox-item">
+                  <div
+                    key={orden.id}
+                    className={`mec-inbox-item ${takenJobId === orden.id ? 'mec-inbox-taken' : ''}`}
+                  >
                     <div className="mec-inbox-info">
                       <span className="mec-job-ot">O.T. {String(orden.numeroOt).padStart(3, '0')}</span>
                       <span className="mec-job-vehicle">{orden.marcaModelo}</span>
@@ -194,12 +249,61 @@ export default function MecanicoView() {
               </div>
             )}
           </section>
+
+          {/* Historial Completados */}
+          <section className="mec-section mec-section-historial">
+            <div className="mec-historial-header">
+              <h2 className="mec-section-title">
+                ✅ Completados
+                <span className="mec-count">{misCompletados.length}</span>
+              </h2>
+              <div className="mec-historial-filters">
+                {[
+                  { key: 'hoy', label: 'Hoy' },
+                  { key: 'semana', label: 'Semana' },
+                  { key: 'mes', label: 'Mes' },
+                  { key: 'todos', label: 'Todos' },
+                ].map(f => (
+                  <button
+                    key={f.key}
+                    className={`mec-historial-filter ${historialFiltro === f.key ? 'active' : ''}`}
+                    onClick={() => setHistorialFiltro(f.key)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {misCompletados.length === 0 ? (
+              <p className="text-sm text-tertiary" style={{ padding: 'var(--space-3)', textAlign: 'center' }}>
+                Sin trabajos completados en este período
+              </p>
+            ) : (
+              <div className="mec-historial-list">
+                {misCompletados.map(orden => (
+                  <div key={orden.id} className="mec-historial-item" onClick={() => setSelectedOT(orden.id)}>
+                    <div className="mec-historial-item-left">
+                      <span className="mec-job-ot">
+                        {orden.tipo === 'interna' ? '🔬 ' : ''}OT-{String(orden.numeroOt).padStart(3, '0')}
+                      </span>
+                      <span className="mec-historial-vehicle">{orden.marcaModelo}</span>
+                    </div>
+                    <div className="mec-historial-item-right">
+                      <span className="mec-historial-acts">{orden.actividades.length} act.</span>
+                      <span className="mec-historial-date">{formatDate(orden.updatedAt)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       ) : (
         /* O.T. Detail View */
         <div className="mec-detail">
-          <button className="btn btn-ghost mec-back-btn" onClick={() => setSelectedOT(null)}>
-            ← Volver
+          <button className="mec-back-btn" onClick={() => setSelectedOT(null)}>
+            ← Volver a mis trabajos
           </button>
 
           <div className="mec-detail-header">
@@ -214,19 +318,29 @@ export default function MecanicoView() {
               <p className="mec-detail-service">
                 {selectedOrden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(' · ')}
               </p>
+              {selectedOrden.clienteNombre && (
+                <p className="mec-detail-client">👤 {selectedOrden.clienteNombre}
+                  {selectedOrden.patenteVehiculo && <span className="mec-detail-patente"> · {selectedOrden.patenteVehiculo}</span>}
+                </p>
+              )}
             </div>
-            <div className="mec-estado-selector">
-              <label className="input-label">Estado</label>
-              <select
-                className="input input-lg"
-                value={selectedOrden.estado}
-                onChange={(e) => handleCambiarEstado(selectedOrden.id, e.target.value)}
-              >
-                <option value="ingresada">🔵 Ingresada</option>
-                <option value="en_proceso">🟡 En Proceso</option>
-                <option value="terminada">🟢 Terminada</option>
-              </select>
-            </div>
+            {selectedOrden.estado !== 'terminada' && (
+              <div className="mec-estado-selector">
+                <label className="input-label">Estado</label>
+                <select
+                  className="input input-lg"
+                  value={selectedOrden.estado}
+                  onChange={(e) => handleCambiarEstado(selectedOrden.id, e.target.value)}
+                >
+                  <option value="ingresada">🔵 Ingresada</option>
+                  <option value="en_proceso">🟡 En Proceso</option>
+                  <option value="terminada">🟢 Terminada</option>
+                </select>
+              </div>
+            )}
+            {selectedOrden.estado === 'terminada' && (
+              <span className="badge badge-terminada" style={{ padding: '8px 16px', fontSize: '14px' }}>🟢 Terminada</span>
+            )}
           </div>
 
           {selectedOrden.observaciones && (
@@ -235,45 +349,50 @@ export default function MecanicoView() {
             </div>
           )}
 
-          {/* Reception Data */}
-          <div className="mec-section-card">
-            <h3 className="mec-card-title">🚗 Datos de Recepción</h3>
-            <div className="mec-recepcion-grid">
-              <div className="input-group">
-                <label className="input-label">Kilometraje</label>
-                <input
-                  type="text"
-                  className="input input-lg"
-                  placeholder="Ej: 85.230"
-                  value={selectedOrden.kilometraje}
-                  onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'kilometraje', e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Nivel Combustible</label>
-                <select
-                  className="input input-lg"
-                  value={selectedOrden.nivelCombustible}
-                  onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'nivelCombustible', e.target.value)}
-                >
-                  <option value="">Seleccionar...</option>
-                  {NIVELES_COMBUSTIBLE.map(n => (
-                    <option key={n.value} value={n.value}>{n.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="input-group full-width">
-                <label className="input-label">Daños Existentes</label>
-                <textarea
-                  className="input"
-                  placeholder="Ej: Abolladura en parachoque trasero..."
-                  value={selectedOrden.danosExistentes}
-                  onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'danosExistentes', e.target.value)}
-                  rows={2}
-                />
+          {/* Reception Data — Only for non-internal OTs */}
+          {selectedOrden.tipo !== 'interna' && (
+            <div className="mec-section-card">
+              <h3 className="mec-card-title">🚗 Datos de Recepción</h3>
+              <div className="mec-recepcion-grid">
+                <div className="input-group">
+                  <label className="input-label">Kilometraje</label>
+                  <input
+                    type="text"
+                    className="input input-lg"
+                    placeholder="Ej: 85.230"
+                    value={selectedOrden.kilometraje}
+                    onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'kilometraje', e.target.value)}
+                    readOnly={selectedOrden.estado === 'terminada'}
+                  />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Nivel Combustible</label>
+                  <select
+                    className="input input-lg"
+                    value={selectedOrden.nivelCombustible}
+                    onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'nivelCombustible', e.target.value)}
+                    disabled={selectedOrden.estado === 'terminada'}
+                  >
+                    <option value="">Seleccionar...</option>
+                    {NIVELES_COMBUSTIBLE.map(n => (
+                      <option key={n.value} value={n.value}>{n.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group full-width">
+                  <label className="input-label">Daños Existentes</label>
+                  <textarea
+                    className="input"
+                    placeholder="Ej: Abolladura en parachoque trasero..."
+                    value={selectedOrden.danosExistentes}
+                    onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'danosExistentes', e.target.value)}
+                    rows={2}
+                    readOnly={selectedOrden.estado === 'terminada'}
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Quick Activities — Toggle */}
           <div className="mec-section-card">
@@ -286,6 +405,7 @@ export default function MecanicoView() {
                     key={act.id}
                     className={`mec-activity-btn ${isDone ? 'done' : ''}`}
                     onClick={() => handleToggleActividad(selectedOrden.id, act.id)}
+                    disabled={selectedOrden.estado === 'terminada'}
                   >
                     <span className="mec-act-icon">{isDone ? '✅' : act.icon}</span>
                     <span className="mec-act-label">{act.label}</span>
@@ -295,23 +415,25 @@ export default function MecanicoView() {
             </div>
 
             {/* Free text note */}
-            <div className="mec-note-input">
-              <input
-                type="text"
-                className="input input-lg"
-                placeholder="Agregar nota libre..."
-                value={notaTexto}
-                onChange={(e) => setNotaTexto(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAgregarNota(selectedOrden.id)}
-              />
-              <button
-                className="btn btn-primary btn-touch"
-                onClick={() => handleAgregarNota(selectedOrden.id)}
-                disabled={!notaTexto.trim()}
-              >
-                ➕
-              </button>
-            </div>
+            {selectedOrden.estado !== 'terminada' && (
+              <div className="mec-note-input">
+                <input
+                  type="text"
+                  className="input input-lg"
+                  placeholder="Agregar nota libre..."
+                  value={notaTexto}
+                  onChange={(e) => setNotaTexto(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAgregarNota(selectedOrden.id)}
+                />
+                <button
+                  className="btn btn-primary btn-touch"
+                  onClick={() => handleAgregarNota(selectedOrden.id)}
+                  disabled={!notaTexto.trim()}
+                >
+                  ➕
+                </button>
+              </div>
+            )}
 
             {/* Bitácora */}
             {(selectedOrden.bitacora || []).length > 0 && (
@@ -341,7 +463,7 @@ export default function MecanicoView() {
           </div>
 
           {/* Send to Lab */}
-          {selectedOrden.tipo !== 'interna' && (
+          {selectedOrden.tipo !== 'interna' && selectedOrden.estado !== 'terminada' && (
             <div className="mec-section-card">
               <div className="mec-card-header">
                 <h3 className="mec-card-title">🔬 Laboratorio</h3>
@@ -357,9 +479,11 @@ export default function MecanicoView() {
           <div className="mec-section-card">
             <div className="mec-card-header">
               <h3 className="mec-card-title">📦 Repuestos</h3>
-              <button className="btn btn-accent btn-touch" onClick={() => setShowRepuestoModal(true)}>
-                ➕ Solicitar
-              </button>
+              {selectedOrden.estado !== 'terminada' && (
+                <button className="btn btn-accent btn-touch" onClick={() => setShowRepuestoModal(true)}>
+                  ➕ Solicitar
+                </button>
+              )}
             </div>
 
             {selectedOrden.solicitudesRepuesto.length > 0 ? (
@@ -384,12 +508,14 @@ export default function MecanicoView() {
           <div className="mec-section-card">
             <div className="mec-card-header">
               <h3 className="mec-card-title">📸 Fotos del Vehículo</h3>
-              <button
-                className="btn btn-primary btn-touch"
-                onClick={() => fotoInputRef.current?.click()}
-              >
-                📷 Tomar Foto
-              </button>
+              {selectedOrden.estado !== 'terminada' && (
+                <button
+                  className="btn btn-primary btn-touch"
+                  onClick={() => fotoInputRef.current?.click()}
+                >
+                  📷 Tomar Foto
+                </button>
+              )}
               <input
                 ref={fotoInputRef}
                 type="file"
@@ -405,13 +531,15 @@ export default function MecanicoView() {
                 {selectedOrden.fotos.map(foto => (
                   <div key={foto.id} className="mec-foto-item">
                     <img src={foto.dataUrl} alt="Foto O.T." />
-                    <button
-                      className="mec-foto-delete"
-                      onClick={() => eliminarFoto(selectedOrden.id, foto.id)}
-                      title="Eliminar foto"
-                    >
-                      ✕
-                    </button>
+                    {selectedOrden.estado !== 'terminada' && (
+                      <button
+                        className="mec-foto-delete"
+                        onClick={() => eliminarFoto(selectedOrden.id, foto.id)}
+                        title="Eliminar foto"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -424,7 +552,7 @@ export default function MecanicoView() {
           {selectedOrden.estado !== 'terminada' && (
             <button
               className="btn btn-success btn-lg btn-block mec-finish-btn"
-              onClick={() => handleCambiarEstado(selectedOrden.id, 'terminada')}
+              onClick={() => setShowFinishConfirm(true)}
             >
               ✅ MARCAR COMO TERMINADA
             </button>
@@ -432,8 +560,34 @@ export default function MecanicoView() {
         </div>
       )}
 
+      {/* Finish Confirmation Modal */}
+      {showFinishConfirm && selectedOrden && (
+        <div className="modal-overlay" onClick={() => setShowFinishConfirm(false)}>
+          <div className="modal" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>✅ Confirmar finalización</h2>
+            </div>
+            <div className="modal-body">
+              <p>¿Estás seguro de marcar la <strong>O.T. {String(selectedOrden.numeroOt).padStart(3, '0')}</strong> como terminada?</p>
+              <p className="text-sm text-tertiary" style={{ marginTop: 'var(--space-2)' }}>
+                {selectedOrden.marcaModelo} — {selectedOrden.actividades.length} actividades realizadas
+              </p>
+              <p className="text-sm text-tertiary" style={{ marginTop: 'var(--space-1)' }}>
+                Esta acción notificará al administrador y la O.T. pasará a tu historial.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setShowFinishConfirm(false)}>Cancelar</button>
+              <button className="btn btn-success btn-lg" onClick={handleConfirmFinish}>
+                ✅ Sí, finalizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Repuesto Request Modal */}
-      {showRepuestoModal && (
+      {showRepuestoModal && selectedOrden && (
         <div className="modal-overlay" onClick={() => setShowRepuestoModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -482,7 +636,7 @@ export default function MecanicoView() {
       )}
 
       {/* Lab Modal */}
-      {showLabModal && (
+      {showLabModal && selectedOrden && (
         <div className="modal-overlay" onClick={() => setShowLabModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
