@@ -11,6 +11,7 @@ export default function Dashboard({ onNavigate }) {
 
   const [expandedPanel, setExpandedPanel] = useState(null);
   const [selectedMecanico, setSelectedMecanico] = useState(null);
+  const [previewOrden, setPreviewOrden] = useState(null);
 
   // Stats
   const totalOT = ordenes.filter(o => o.tipo !== 'interna').length;
@@ -255,13 +256,16 @@ export default function Dashboard({ onNavigate }) {
               <div className="dash-panel-list">
                 {sinNotificar.map(o => (
                   <div key={o.id} className="dash-panel-item">
-                    <div>
+                    <div
+                      className="dash-panel-item-clickable"
+                      onClick={() => setPreviewOrden(o)}
+                    >
                       <span className="font-bold" style={{ color: 'var(--color-primary-400)' }}>
                         OT-{String(o.numeroOt).padStart(3, '0')}
                       </span>
                       <span className="text-sm"> — {o.clienteNombre} — {o.marcaModelo}</span>
                     </div>
-                    <button className="btn btn-success btn-sm" onClick={() => sendWhatsApp(o)}>
+                    <button className="btn btn-success btn-sm" onClick={(e) => { e.stopPropagation(); sendWhatsApp(o); }}>
                       📲 WhatsApp
                     </button>
                   </div>
@@ -278,24 +282,30 @@ export default function Dashboard({ onNavigate }) {
               <p className="text-sm text-tertiary">Sin solicitudes pendientes ✅</p>
             ) : (
               <div className="dash-panel-list">
-                {pendingSolicitudes.map(s => (
-                  <div key={s.id} className="dash-panel-item">
-                    <div>
-                      <span className="font-bold" style={{ color: 'var(--color-primary-400)' }}>
-                        OT-{String(s.ordenNumero).padStart(3, '0')}
-                      </span>
-                      <span className="text-sm"> — {s.cantidad}x {s.repuestoNombre}</span>
+                {pendingSolicitudes.map(s => {
+                  const fullOrden = ordenes.find(o => o.id === s.ordenId);
+                  return (
+                    <div key={s.id} className="dash-panel-item">
+                      <div
+                        className="dash-panel-item-clickable"
+                        onClick={() => fullOrden && setPreviewOrden(fullOrden)}
+                      >
+                        <span className="font-bold" style={{ color: 'var(--color-primary-400)' }}>
+                          OT-{String(s.ordenNumero).padStart(3, '0')}
+                        </span>
+                        <span className="text-sm"> — {s.cantidad}x {s.repuestoNombre}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn btn-success btn-sm" onClick={(e) => { e.stopPropagation(); aprobarSolicitud(s.ordenId, s.id); }}>
+                          ✅
+                        </button>
+                        <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); rechazarSolicitud(s.ordenId, s.id); }}>
+                          ❌
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button className="btn btn-success btn-sm" onClick={() => aprobarSolicitud(s.ordenId, s.id)}>
-                        ✅
-                      </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => rechazarSolicitud(s.ordenId, s.id)}>
-                        ❌
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -349,6 +359,123 @@ export default function Dashboard({ onNavigate }) {
             ))}
         </div>
       </section>
+
+      {/* OT Preview Modal */}
+      {previewOrden && (
+        <div className="modal-overlay" onClick={() => setPreviewOrden(null)}>
+          <div className="modal" style={{ maxWidth: '640px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                {previewOrden.tipo === 'interna' ? '🔬 ' : ''}O.T. {String(previewOrden.numeroOt).padStart(3, '0')}
+                <span className={`badge badge-${previewOrden.estado.replace('_', '-')}`} style={{ marginLeft: '12px' }}>
+                  {previewOrden.estado === 'ingresada' ? '🔵' : previewOrden.estado === 'en_proceso' ? '🟡' : '🟢'} {previewOrden.estado.replace('_', ' ')}
+                </span>
+              </h2>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPreviewOrden(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="preview-detail-grid">
+                <div>
+                  <span className="text-xs text-tertiary">Cliente</span>
+                  <p className="font-medium">{previewOrden.clienteNombre || '—'}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-tertiary">Teléfono</span>
+                  <p className="font-medium">{previewOrden.clienteTelefono || '—'}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-tertiary">Vehículo</span>
+                  <p className="font-medium">{previewOrden.marcaModelo}</p>
+                </div>
+                {previewOrden.patenteVehiculo && (
+                  <div>
+                    <span className="text-xs text-tertiary">Patente</span>
+                    <p className="font-medium" style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{previewOrden.patenteVehiculo}</p>
+                  </div>
+                )}
+                <div>
+                  <span className="text-xs text-tertiary">Mecánico</span>
+                  <p className="font-medium">{previewOrden.mecanicoNombre || 'Sin asignar'}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-tertiary">Servicios</span>
+                  <p className="font-medium">
+                    {previewOrden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-xs text-tertiary">Fecha ingreso</span>
+                  <p className="font-medium">{formatDate(previewOrden.createdAt)}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-tertiary">Última actualización</span>
+                  <p className="font-medium">{formatDate(previewOrden.updatedAt)}</p>
+                </div>
+              </div>
+
+              {previewOrden.observaciones && (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                  <span className="text-xs text-tertiary">💬 Observaciones</span>
+                  <p className="font-medium" style={{ marginTop: 'var(--space-1)' }}>{previewOrden.observaciones}</p>
+                </div>
+              )}
+
+              {previewOrden.actividades.length > 0 && (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                  <span className="text-xs text-tertiary">📝 Actividades ({previewOrden.actividades.length})</span>
+                  <div className="activities-chips" style={{ marginTop: 'var(--space-2)' }}>
+                    {previewOrden.actividades.map(act => (
+                      <span key={act.id} className="badge badge-terminada">
+                        ✅ {act.tipo.replace(/_/g, ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {previewOrden.solicitudesRepuesto.length > 0 && (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                  <span className="text-xs text-tertiary">📦 Repuestos ({previewOrden.solicitudesRepuesto.length})</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                    {previewOrden.solicitudesRepuesto.map(sol => (
+                      <div key={sol.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) var(--space-3)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+                        <span className="font-medium text-sm">{sol.cantidad}x {sol.repuestoNombre}</span>
+                        <span className={`badge badge-${sol.estado === 'aprobada' ? 'terminada' : sol.estado === 'rechazada' ? 'pendiente' : 'en-proceso'}`}>
+                          {sol.estado}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(previewOrden.bitacora || []).length > 0 && (
+                <div style={{ marginTop: 'var(--space-4)' }}>
+                  <span className="text-xs text-tertiary">📖 Bitácora (últimas 5)</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+                    {[...previewOrden.bitacora].reverse().slice(0, 5).map(entry => (
+                      <div key={entry.id} style={{ padding: 'var(--space-2) var(--space-3)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-sm)' }}>
+                        {entry.accion === 'marcar' && '✅ '}
+                        {entry.accion === 'desmarcar' && '❌ '}
+                        {entry.accion === 'nota' && '📝 '}
+                        {entry.accion === 'enviar_lab' && '🔬 '}
+                        {entry.descripcion || entry.tipo?.replace(/_/g, ' ')}
+                        <span className="text-xs text-tertiary" style={{ marginLeft: '8px' }}>{formatDate(entry.createdAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setPreviewOrden(null)}>Cerrar</button>
+              <button className="btn btn-primary" onClick={() => { setPreviewOrden(null); onNavigate('ordenes'); }}>
+                📋 Ver en Órdenes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

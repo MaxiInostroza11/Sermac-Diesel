@@ -7,19 +7,29 @@ export default function OrdenesAdmin({ onNavigate }) {
   const { ordenes, mecanicos, updateOrden, aprobarSolicitud, rechazarSolicitud, asignarMecanico } = useApp();
   const [selectedOrdenId, setSelectedOrdenId] = useState(null);
   const [filterEstado, setFilterEstado] = useState('todos');
+  const [filterMecanico, setFilterMecanico] = useState('todos');
+  const [sortDirection, setSortDirection] = useState('desc');
   const [search, setSearch] = useState('');
 
   // Always derive selectedOrden from live ordenes state (fixes stale reference bug)
   const selectedOrden = selectedOrdenId ? ordenes.find(o => o.id === selectedOrdenId) : null;
 
   const filteredOrdenes = ordenes.filter(o => {
-    // Tipo filter
+    // Tipo/estado filter
     if (filterEstado === 'interna') {
       if (o.tipo !== 'interna') return false;
     } else if (filterEstado !== 'todos') {
       if (o.estado !== filterEstado) return false;
     }
-    // Search filter (applied on top of estado filter)
+    // Mechanic filter
+    if (filterMecanico !== 'todos') {
+      if (filterMecanico === 'sin_asignar') {
+        if (o.mecanicoId) return false;
+      } else {
+        if (o.mecanicoId !== filterMecanico) return false;
+      }
+    }
+    // Search filter
     if (search) {
       const searchLower = search.toLowerCase();
       return (
@@ -31,7 +41,11 @@ export default function OrdenesAdmin({ onNavigate }) {
       );
     }
     return true;
-  }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }).sort((a, b) => {
+    const dateA = new Date(a.createdAt);
+    const dateB = new Date(b.createdAt);
+    return sortDirection === 'desc' ? dateB - dateA : dateA - dateB;
+  });
 
   const estadoLabel = { ingresada: 'Ingresada', en_proceso: 'En Proceso', terminada: 'Terminada' };
   const estadoIcon = { ingresada: '🔵', en_proceso: '🟡', terminada: '🟢' };
@@ -89,6 +103,26 @@ export default function OrdenesAdmin({ onNavigate }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+        <div className="ordenes-filters-row">
+          <select
+            className="input ordenes-filter-select"
+            value={filterMecanico}
+            onChange={(e) => setFilterMecanico(e.target.value)}
+          >
+            <option value="todos">👷 Todos los mecánicos</option>
+            <option value="sin_asignar">— Sin asignar —</option>
+            {mecanicos.map(m => (
+              <option key={m.id} value={m.id}>{m.nombre}</option>
+            ))}
+          </select>
+          <button
+            className="btn btn-ghost ordenes-sort-btn"
+            onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}
+            title={sortDirection === 'desc' ? 'Más recientes primero' : 'Más antiguas primero'}
+          >
+            {sortDirection === 'desc' ? '🔽 Recientes' : '🔼 Antiguas'}
+          </button>
         </div>
         <div className="filter-tabs">
           {[

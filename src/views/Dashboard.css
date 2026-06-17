@@ -444,6 +444,32 @@
   background: var(--color-bg-card-hover);
 }
 
+.dash-panel-item-clickable {
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) 0;
+  transition: color var(--transition-fast);
+}
+
+.dash-panel-item-clickable:hover {
+  color: var(--color-primary-400);
+}
+
+/* OT Preview Modal Grid */
+.preview-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 480px) {
+  .preview-detail-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+}
+
 /* ===== RECENT ACTIVITY ===== */
 .dash-recent-list {
   display: flex;
