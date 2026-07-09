@@ -11,8 +11,18 @@ import Clientes from './views/Clientes';
 import MecanicoView from './views/MecanicoView';
 
 function AppContent() {
-  const { currentUser } = useApp();
+  const { currentUser, loadingData } = useApp();
   const [currentView, setCurrentView] = useState('dashboard');
+
+  if (loadingData) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', justifyContent: 'center', alignItems: 'center', background: 'var(--color-bg-primary)', color: 'white' }}>
+        <div style={{ border: '4px solid rgba(255,255,255,0.1)', borderTop: '4px solid var(--color-primary-500)', borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite' }} />
+        <p style={{ marginTop: '16px', fontWeight: 'bold' }}>Cargando datos del servidor...</p>
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   // Not logged in
   if (!currentUser) {

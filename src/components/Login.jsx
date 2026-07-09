@@ -9,18 +9,16 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    setTimeout(() => {
-      const result = login(rut, password);
-      if (!result.success) {
-        setError(result.error);
-      }
-      setLoading(false);
-    }, 600);
+    const result = await login(rut, password);
+    if (!result.success) {
+      setError(result.error);
+    }
+    setLoading(false);
   };
 
   return (
