@@ -460,7 +460,7 @@ export default function Dashboard({ onNavigate }) {
                         {entry.accion === 'nota' && '📝 '}
                         {entry.accion === 'enviar_lab' && '🔬 '}
                         {entry.descripcion || entry.tipo?.replace(/_/g, ' ')}
-                        <span className="text-xs text-tertiary" style={{ marginLeft: '8px' }}>{formatDate(entry.createdAt)}</span>
+                        <span className="text-xs text-tertiary" style={{ marginLeft: '8px' }}>{formatDate(entry.created_at || entry.createdAt)}</span>
                       </div>
                     ))}
                   </div>

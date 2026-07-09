@@ -289,7 +289,7 @@ export default function OrdenesAdmin({ onNavigate }) {
                                 {entry.accion === 'nota' && entry.descripcion}
                                 {entry.accion === 'enviar_lab' && entry.descripcion}
                               </span>
-                              <span className="timeline-time">{formatDate(entry.createdAt)}</span>
+                              <span className="timeline-time">{formatDate(entry.created_at || entry.createdAt)}</span>
                             </div>
                           </div>
                         ))}
@@ -347,7 +347,12 @@ export default function OrdenesAdmin({ onNavigate }) {
                       <div className="orden-fotos-grid">
                         {orden.fotos.map(foto => (
                           <div key={foto.id} className="orden-foto-thumb">
-                            <img src={foto.dataUrl} alt="Foto O.T." />
+                            <img
+                              src={foto.data_url || foto.dataUrl}
+                              alt="Foto O.T."
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => window.open(foto.data_url || foto.dataUrl, '_blank')}
+                            />
                           </div>
                         ))}
                       </div>
