@@ -195,14 +195,14 @@ export default function MecanicoView() {
                       )}
                     </div>
                     <p className="mec-job-service">
-                      {orden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
+                      {(orden.servicios || []).map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
                     </p>
                     {orden.observaciones && (
                       <p className="mec-job-obs">💬 {orden.observaciones}</p>
                     )}
                     <div className="mec-job-footer">
-                      <span className="mec-job-acts">{orden.actividades.length} actividades</span>
-                      {orden.solicitudesRepuesto.some(s => s.estado === 'pendiente') && (
+                      <span className="mec-job-acts">{(orden.actividades || []).length} actividades</span>
+                      {(orden.solicitudesRepuesto || []).some(s => s.estado === 'pendiente') && (
                         <span className="badge badge-pendiente">⏳ Rep. pendiente</span>
                       )}
                     </div>
@@ -234,7 +234,7 @@ export default function MecanicoView() {
                       <span className="mec-job-ot">O.T. {String(orden.numeroOt).padStart(3, '0')}</span>
                       <span className="mec-job-vehicle">{orden.marcaModelo}</span>
                       <span className="text-xs text-tertiary">
-                        {orden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
+                        {(orden.servicios || []).map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
                       </span>
                     </div>
                     <button
@@ -290,7 +290,7 @@ export default function MecanicoView() {
                       <span className="mec-historial-vehicle">{orden.marcaModelo}</span>
                     </div>
                     <div className="mec-historial-item-right">
-                      <span className="mec-historial-acts">{orden.actividades.length} act.</span>
+                      <span className="mec-historial-acts">{(orden.actividades || []).length} act.</span>
                       <span className="mec-historial-date">{formatDate(orden.updatedAt)}</span>
                     </div>
                   </div>
@@ -316,7 +316,7 @@ export default function MecanicoView() {
               )}
               <p className="mec-detail-vehicle">{selectedOrden.marcaModelo}</p>
               <p className="mec-detail-service">
-                {selectedOrden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(' · ')}
+                {(selectedOrden.servicios || []).map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(' · ')}
               </p>
               {selectedOrden.clienteNombre && (
                 <p className="mec-detail-client">👤 {selectedOrden.clienteNombre}
@@ -360,7 +360,7 @@ export default function MecanicoView() {
                     type="text"
                     className="input input-lg"
                     placeholder="Ej: 85.230"
-                    value={selectedOrden.kilometraje}
+                    value={selectedOrden.kilometraje ?? ''}
                     onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'kilometraje', e.target.value)}
                     readOnly={selectedOrden.estado === 'terminada'}
                   />
@@ -369,7 +369,7 @@ export default function MecanicoView() {
                   <label className="input-label">Nivel Combustible</label>
                   <select
                     className="input input-lg"
-                    value={selectedOrden.nivelCombustible}
+                    value={selectedOrden.nivelCombustible ?? ''}
                     onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'nivelCombustible', e.target.value)}
                     disabled={selectedOrden.estado === 'terminada'}
                   >
@@ -384,7 +384,7 @@ export default function MecanicoView() {
                   <textarea
                     className="input"
                     placeholder="Ej: Abolladura en parachoque trasero..."
-                    value={selectedOrden.danosExistentes}
+                    value={selectedOrden.danosExistentes ?? ''}
                     onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'danosExistentes', e.target.value)}
                     rows={2}
                     readOnly={selectedOrden.estado === 'terminada'}
@@ -399,7 +399,7 @@ export default function MecanicoView() {
             <h3 className="mec-card-title">📝 Actividades Realizadas</h3>
             <div className="mec-activities-grid">
               {ACTIVIDADES_RAPIDAS.map(act => {
-                const isDone = selectedOrden.actividades.some(a => a.tipo === act.id);
+                const isDone = (selectedOrden.actividades || []).some(a => a.tipo === act.id);
                 return (
                   <button
                     key={act.id}

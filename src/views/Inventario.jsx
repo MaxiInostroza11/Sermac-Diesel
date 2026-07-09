@@ -13,7 +13,7 @@ export default function Inventario() {
   const filtered = repuestos.filter(r => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return r.codigo.includes(s) || r.nombre.toLowerCase().includes(s) || r.modelo.toLowerCase().includes(s);
+    return (r.codigo || '').includes(s) || r.nombre.toLowerCase().includes(s) || (r.modelo || '').toLowerCase().includes(s);
   });
 
   const openNew = () => {
@@ -23,7 +23,13 @@ export default function Inventario() {
   };
 
   const openEdit = (rep) => {
-    setForm({ ...rep });
+    setForm({
+      codigo: rep.codigo || '',
+      nombre: rep.nombre || '',
+      modelo: rep.modelo || '',
+      stock: rep.stock || 0,
+      stockMinimo: rep.stockMinimo ?? rep.stock_minimo ?? 4
+    });
     setEditItem(rep);
     setShowModal(true);
   };

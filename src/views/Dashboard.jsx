@@ -23,7 +23,7 @@ export default function Dashboard({ onNavigate }) {
   // Pending solicitudes with full data
   const pendingSolicitudes = [];
   ordenes.forEach(o => {
-    o.solicitudesRepuesto.filter(s => s.estado === 'pendiente').forEach(s => {
+    (o.solicitudesRepuesto || []).filter(s => s.estado === 'pendiente').forEach(s => {
       pendingSolicitudes.push({ ...s, ordenId: o.id, ordenNumero: o.numeroOt, vehiculo: o.marcaModelo });
     });
   });
@@ -42,7 +42,7 @@ export default function Dashboard({ onNavigate }) {
       tiempoTrabajando = `${hrs}h ${mins}m`;
     }
     const progreso = trabajoActual
-      ? Math.min(Math.round((trabajoActual.actividades.length / 14) * 100), 100)
+      ? Math.min(Math.round(((trabajoActual.actividades || []).length / 14) * 100), 100)
       : 0;
     return { trabajosActivos, trabajosCompletados, trabajoActual, tiempoTrabajando, progreso };
   };
@@ -149,7 +149,7 @@ export default function Dashboard({ onNavigate }) {
                         </span>
                         <span className="monitor-job-vehicle">{t.marcaModelo}</span>
                         <span className="monitor-job-service">
-                          {t.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
+                          {(t.servicios || []).map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
                         </span>
                       </div>
                     ))}
@@ -400,7 +400,7 @@ export default function Dashboard({ onNavigate }) {
                 <div>
                   <span className="text-xs text-tertiary">Servicios</span>
                   <p className="font-medium">
-                    {previewOrden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
+                    {(previewOrden.servicios || []).map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
                   </p>
                 </div>
                 <div>
@@ -420,11 +420,11 @@ export default function Dashboard({ onNavigate }) {
                 </div>
               )}
 
-              {previewOrden.actividades.length > 0 && (
+              {(previewOrden.actividades || []).length > 0 && (
                 <div style={{ marginTop: 'var(--space-4)' }}>
-                  <span className="text-xs text-tertiary">📝 Actividades ({previewOrden.actividades.length})</span>
+                  <span className="text-xs text-tertiary">📝 Actividades ({(previewOrden.actividades || []).length})</span>
                   <div className="activities-chips" style={{ marginTop: 'var(--space-2)' }}>
-                    {previewOrden.actividades.map(act => (
+                    {(previewOrden.actividades || []).map(act => (
                       <span key={act.id} className="badge badge-terminada">
                         ✅ {act.tipo.replace(/_/g, ' ')}
                       </span>
@@ -433,11 +433,11 @@ export default function Dashboard({ onNavigate }) {
                 </div>
               )}
 
-              {previewOrden.solicitudesRepuesto.length > 0 && (
+              {(previewOrden.solicitudesRepuesto || []).length > 0 && (
                 <div style={{ marginTop: 'var(--space-4)' }}>
-                  <span className="text-xs text-tertiary">📦 Repuestos ({previewOrden.solicitudesRepuesto.length})</span>
+                  <span className="text-xs text-tertiary">📦 Repuestos ({(previewOrden.solicitudesRepuesto || []).length})</span>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-                    {previewOrden.solicitudesRepuesto.map(sol => (
+                    {(previewOrden.solicitudesRepuesto || []).map(sol => (
                       <div key={sol.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--space-2) var(--space-3)', background: 'var(--color-bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
                         <span className="font-medium text-sm">{sol.cantidad}x {sol.repuestoNombre}</span>
                         <span className={`badge badge-${sol.estado === 'aprobada' ? 'terminada' : sol.estado === 'rechazada' ? 'pendiente' : 'en-proceso'}`}>

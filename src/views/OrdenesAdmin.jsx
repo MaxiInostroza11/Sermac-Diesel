@@ -167,7 +167,7 @@ export default function OrdenesAdmin({ onNavigate }) {
                   <span className={`badge badge-${orden.estado.replace('_', '-')}`}>
                     {estadoIcon[orden.estado]} {estadoLabel[orden.estado]}
                   </span>
-                  {orden.solicitudesRepuesto.some(s => s.estado === 'pendiente') && (
+                  {(orden.solicitudesRepuesto || []).some(s => s.estado === 'pendiente') && (
                     <span className="badge badge-pendiente">📦 Rep. Pendiente</span>
                   )}
                   {orden.estado === 'terminada' && !orden.clienteNotificado && orden.tipo !== 'interna' && (
@@ -195,7 +195,7 @@ export default function OrdenesAdmin({ onNavigate }) {
                   <div>
                     <span className="text-xs text-tertiary">Servicio</span>
                     <p className="font-medium">
-                      {orden.servicios.map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
+                      {(orden.servicios || []).map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
                     </p>
                   </div>
                   <div>
@@ -298,11 +298,11 @@ export default function OrdenesAdmin({ onNavigate }) {
                   )}
 
                   {/* Activities */}
-                  {orden.actividades.length > 0 && (
+                  {(orden.actividades || []).length > 0 && (
                     <div className="orden-detail-section">
-                      <h4>📝 Actividades ({orden.actividades.length})</h4>
+                      <h4>📝 Actividades ({(orden.actividades || []).length})</h4>
                       <div className="activities-chips">
-                        {orden.actividades.map(act => (
+                        {(orden.actividades || []).map(act => (
                           <span key={act.id} className="badge badge-terminada">
                             ✅ {act.tipo.replace(/_/g, ' ')}
                           </span>
@@ -312,11 +312,11 @@ export default function OrdenesAdmin({ onNavigate }) {
                   )}
 
                   {/* Parts Requests */}
-                  {orden.solicitudesRepuesto.length > 0 && (
+                  {(orden.solicitudesRepuesto || []).length > 0 && (
                     <div className="orden-detail-section">
                       <h4>📦 Solicitudes de Repuestos</h4>
                       <div className="solicitudes-list">
-                        {orden.solicitudesRepuesto.map(sol => (
+                        {(orden.solicitudesRepuesto || []).map(sol => (
                           <div key={sol.id} className="solicitud-item">
                             <div className="solicitud-info">
                               <span className="font-medium">{sol.cantidad}x {sol.repuestoNombre}</span>

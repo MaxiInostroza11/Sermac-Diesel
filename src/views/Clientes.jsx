@@ -15,7 +15,7 @@ export default function Clientes() {
   const filtered = clientes.filter(c => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return c.nombre.toLowerCase().includes(s) || c.telefono.includes(s) || (c.rut || '').includes(s);
+    return c.nombre.toLowerCase().includes(s) || (c.telefono || '').includes(s) || (c.rut || '').includes(s);
   });
 
   // Memoize ordenes per client to avoid recalculating on every render

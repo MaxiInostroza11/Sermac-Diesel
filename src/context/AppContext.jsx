@@ -388,7 +388,10 @@ export function AppProvider({ children }) {
     return count + (o.solicitudesRepuesto || []).filter(s => s.estado === 'pendiente').length;
   }, 0);
 
-  const lowStockItems = repuestos.filter(r => r.stock <= r.stock_minimo);
+  const lowStockItems = repuestos.map(r => ({
+    ...r,
+    stockMinimo: r.stockMinimo ?? r.stock_minimo ?? 0
+  })).filter(r => r.stock <= r.stockMinimo);
   const mecanicos = usuarios.filter(u => u.rol === 'mecanico');
 
   const value = {
