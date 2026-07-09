@@ -103,6 +103,11 @@ export function AppProvider({ children }) {
   const isAdmin = currentUser?.rol === 'admin';
 
   // --- O.T. ---
+  const getNextOtNumber = useCallback(() => {
+    if (ordenes.length === 0) return 1;
+    return Math.max(...ordenes.map(o => o.numeroOt)) + 1;
+  }, [ordenes]);
+
   const createOrden = useCallback(async (ordenData) => {
     let clienteId = null;
 
@@ -145,7 +150,8 @@ export function AppProvider({ children }) {
         ordenData.servicios.map(s => ({
           orden_id: newOrden.id,
           sistema: s.sistema,
-          cantidad: s.cantidad
+          cantidad: s.cantidad,
+          especificar: s.especificar || null
         }))
       );
     }
