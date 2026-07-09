@@ -323,7 +323,49 @@ export function AppProvider({ children }) {
     if (!error) {
       addNotification('success', `Repuesto "${data.nombre}" agregado al inventario`);
       fetchData(false);
+    } else {
+      addNotification('danger', `Error al agregar repuesto`);
     }
+  }, [fetchData, addNotification]);
+
+  const updateRepuesto = useCallback(async (repuestoId, updates) => {
+    const dbUpdates = {};
+    if (updates.nombre !== undefined) dbUpdates.nombre = updates.nombre;
+    if (updates.codigo !== undefined) dbUpdates.codigo = updates.codigo;
+    if (updates.modelo !== undefined) dbUpdates.modelo = updates.modelo;
+    if (updates.stock !== undefined) dbUpdates.stock = updates.stock;
+    if (updates.stockMinimo !== undefined) dbUpdates.stock_minimo = updates.stockMinimo;
+    await supabase.from('repuestos').update(dbUpdates).eq('id', repuestoId);
+    fetchData(false);
+  }, [fetchData]);
+
+  const deleteRepuesto = useCallback(async (repuestoId) => {
+    await supabase.from('repuestos').delete().eq('id', repuestoId);
+    addNotification('info', 'Repuesto eliminado del inventario');
+    fetchData(false);
+  }, [fetchData, addNotification]);
+
+  // --- Clientes CRUD ---
+  const addCliente = useCallback(async (clienteData) => {
+    const { data, error } = await supabase.from('clientes').insert({
+      nombre: clienteData.nombre,
+      telefono: clienteData.telefono || null
+    }).select().single();
+    if (!error) {
+      addNotification('success', `Cliente "${data.nombre}" registrado`);
+      fetchData(false);
+      return data;
+    }
+    return null;
+  }, [fetchData, addNotification]);
+
+  const updateCliente = useCallback(async (clienteId, updates) => {
+    await supabase.from('clientes').update({
+      nombre: updates.nombre,
+      telefono: updates.telefono
+    }).eq('id', clienteId);
+    addNotification('success', 'Datos del cliente actualizados');
+    fetchData(false);
   }, [fetchData, addNotification]);
 
   // --- Fotos ---
@@ -360,22 +402,34 @@ export function AppProvider({ children }) {
     repuestos,
     usuarios,
     mecanicos,
+    // O.T.
+    getNextOtNumber,
     createOrden,
     updateOrden,
     tomarTrabajo,
     asignarMecanico,
     getTrabajosMecanico,
+    // Actividades
     toggleActividad,
     agregarActividad,
     crearOTInterna,
+    // Fotos
     agregarFoto,
     eliminarFoto,
+    // Repuestos
     solicitarRepuesto,
     aprobarSolicitud,
     rechazarSolicitud,
     addRepuesto,
+    updateRepuesto,
+    deleteRepuesto,
+    // Clientes
+    addCliente,
+    updateCliente,
+    // Notificaciones
     notifications,
     addNotification,
+    // Computed
     pendingApprovals,
     lowStockItems,
   };
