@@ -73,11 +73,15 @@ export default function MecanicoView() {
   const formatTime = (d) => new Date(d).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
   const formatDate = (d) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-  const handleTomarTrabajo = (ordenId) => {
-    const result = tomarTrabajo(ordenId);
+  const handleTomarTrabajo = async (ordenId) => {
+    const result = await tomarTrabajo(ordenId);
     if (result) {
       setTakenJobId(ordenId);
-      setTimeout(() => setTakenJobId(null), 600);
+      // Esperamos que fetchData refresque los datos antes de abrir el detalle
+      setTimeout(() => {
+        setTakenJobId(null);
+        setSelectedOT(ordenId);
+      }, 1200);
     }
   };
 
@@ -155,7 +159,15 @@ export default function MecanicoView() {
       </header>
 
       {/* Main Content */}
-      {!selectedOrden ? (
+      {selectedOT && !selectedOrden ? (
+        /* Orden tomada pero datos aún refrescando desde Supabase */
+        <div className="mec-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚙️</div>
+            <p style={{ color: 'var(--color-text-secondary)' }}>Cargando orden...</p>
+          </div>
+        </div>
+      ) : !selectedOrden ? (
         <div className="mec-content">
           {/* Mis Trabajos Activos */}
           <section className="mec-section mec-section-main">

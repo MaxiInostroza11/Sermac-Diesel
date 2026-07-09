@@ -43,6 +43,8 @@ export function AppProvider({ children }) {
       const mappedOrdenes = (dbOrdenes || []).map(o => ({
         ...o,
         numeroOt: o.numero_ot,
+        mecanicoId: o.mecanico_id,
+        clienteId: o.cliente_id,
         clienteNombre: o.cliente?.nombre,
         clienteTelefono: o.cliente?.telefono,
         mecanicoNombre: o.mecanico?.nombre,
@@ -56,7 +58,7 @@ export function AppProvider({ children }) {
         updatedAt: o.updated_at,
         solicitudesRepuesto: (o.solicitudes_repuesto || []).map(sr => ({
           ...sr,
-          repuestoNombre: (dbRepuestos || []).find(r => r.id === sr.repuesto_id)?.nombre + ' ' + (dbRepuestos || []).find(r => r.id === sr.repuesto_id)?.modelo
+          repuestoNombre: (dbRepuestos || []).find(r => r.id === sr.repuesto_id)?.nombre + ' ' + ((dbRepuestos || []).find(r => r.id === sr.repuesto_id)?.modelo || '')
         }))
       }));
 
@@ -165,12 +167,12 @@ export function AppProvider({ children }) {
   const updateOrden = useCallback(async (ordenId, updates) => {
     // Mapear camelCase a snake_case
     const dbUpdates = {};
-    if (updates.estado) dbUpdates.estado = updates.estado;
-    if (updates.kilometraje) dbUpdates.kilometraje = updates.kilometraje;
-    if (updates.nivelCombustible) dbUpdates.nivel_combustible = updates.nivelCombustible;
-    if (updates.danosExistentes) dbUpdates.danos_existentes = updates.danosExistentes;
-    if (updates.clienteNotificado !== undefined) dbUpdates.cliente_notificado = updates.clienteNotificado;
-    if (updates.mecanicoId) dbUpdates.mecanico_id = updates.mecanicoId;
+    if ('estado' in updates) dbUpdates.estado = updates.estado;
+    if ('kilometraje' in updates) dbUpdates.kilometraje = updates.kilometraje || null;
+    if ('nivelCombustible' in updates) dbUpdates.nivel_combustible = updates.nivelCombustible || null;
+    if ('danosExistentes' in updates) dbUpdates.danos_existentes = updates.danosExistentes || null;
+    if ('clienteNotificado' in updates) dbUpdates.cliente_notificado = updates.clienteNotificado;
+    if ('mecanicoId' in updates) dbUpdates.mecanico_id = updates.mecanicoId || null;
 
     await supabase.from('ordenes').update(dbUpdates).eq('id', ordenId);
     fetchData(false);
@@ -202,7 +204,7 @@ export function AppProvider({ children }) {
     const orden = ordenes.find(o => o.id === ordenId);
     if (!orden) return;
 
-    const actividadExistente = orden.actividades.find(a => a.tipo === tipo);
+    const actividadExistente = (orden.actividades || []).find(a => a.tipo === tipo);
 
     if (actividadExistente) {
       // Eliminar actividad
