@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
 import { ACTIVIDADES_RAPIDAS, NIVELES_COMBUSTIBLE, MAX_TRABAJOS_ACTIVOS } from '../data/mockData';
 import './MecanicoView.css';
@@ -16,10 +16,14 @@ export default function MecanicoView() {
   const [showLabModal, setShowLabModal] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [labDescripcion, setLabDescripcion] = useState('');
-  const [repuestoForm, setRepuestoForm] = useState({ repuestoId: '', cantidad: 1 });
+  const [repuestoForm, setRepuestoForm] = useState({ repuestoId: '', cantidad: '' });
   const [notaTexto, setNotaTexto] = useState('');
   const [historialFiltro, setHistorialFiltro] = useState('semana');
   const [takenJobId, setTakenJobId] = useState(null);
+  const [deleteActConfirm, setDeleteActConfirm] = useState(null); // { ordenId, tipo, label }
+  // Local edits para km/danos para evitar llamar Supabase en cada tecla
+  const [localKm, setLocalKm] = useState({});
+  const [localDanos, setLocalDanos] = useState({});
   const fotoInputRef = useRef(null);
 
   // Derive selectedOrden from live state (fixes stale reference bug)
@@ -112,13 +116,40 @@ export default function MecanicoView() {
 
   const handleSolicitarRepuesto = (ordenId) => {
     if (!repuestoForm.repuestoId) return;
-    solicitarRepuesto(ordenId, repuestoForm.repuestoId, repuestoForm.cantidad);
-    setRepuestoForm({ repuestoId: '', cantidad: 1 });
+    const cantidad = parseInt(repuestoForm.cantidad) || 1;
+    solicitarRepuesto(ordenId, repuestoForm.repuestoId, cantidad);
+    setRepuestoForm({ repuestoId: '', cantidad: '' });
     setShowRepuestoModal(false);
   };
 
   const handleUpdateRecepcion = (ordenId, field, value) => {
     updateOrden(ordenId, { [field]: value });
+  };
+
+  // Guardar km solo al perder el foco (evita llamar Supabase en cada tecla en celular)
+  const handleKmBlur = (ordenId) => {
+    const val = localKm[ordenId];
+    if (val !== undefined) {
+      updateOrden(ordenId, { kilometraje: val });
+    }
+  };
+
+  const handleDanosBlur = (ordenId) => {
+    const val = localDanos[ordenId];
+    if (val !== undefined) {
+      updateOrden(ordenId, { danosExistentes: val });
+    }
+  };
+
+  // Eliminar actividad (toggle desmarca sin dejar entrada de 'desmarcar' en bitacora)
+  const handleEliminarActividad = (ordenId, tipo, label) => {
+    setDeleteActConfirm({ ordenId, tipo, label });
+  };
+
+  const confirmEliminarActividad = () => {
+    if (!deleteActConfirm) return;
+    handleToggleActividad(deleteActConfirm.ordenId, deleteActConfirm.tipo);
+    setDeleteActConfirm(null);
   };
 
   const handleFotoCapture = (e, ordenId) => {
@@ -372,8 +403,9 @@ export default function MecanicoView() {
                     type="text"
                     className="input input-lg"
                     placeholder="Ej: 85.230"
-                    value={selectedOrden.kilometraje ?? ''}
-                    onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'kilometraje', e.target.value)}
+                    value={localKm[selectedOrden.id] ?? (selectedOrden.kilometraje ?? '')}
+                    onChange={(e) => setLocalKm(p => ({ ...p, [selectedOrden.id]: e.target.value }))}
+                    onBlur={() => handleKmBlur(selectedOrden.id)}
                     readOnly={selectedOrden.estado === 'terminada'}
                   />
                 </div>
@@ -396,9 +428,10 @@ export default function MecanicoView() {
                   <textarea
                     className="input"
                     placeholder="Ej: Abolladura en parachoque trasero..."
-                    value={selectedOrden.danosExistentes ?? ''}
-                    onChange={(e) => handleUpdateRecepcion(selectedOrden.id, 'danosExistentes', e.target.value)}
-                    rows={2}
+                    value={localDanos[selectedOrden.id] ?? (selectedOrden.danosExistentes ?? '')}
+                    onChange={(e) => setLocalDanos(p => ({ ...p, [selectedOrden.id]: e.target.value }))}
+                    onBlur={() => handleDanosBlur(selectedOrden.id)}
+                    rows={3}
                     readOnly={selectedOrden.estado === 'terminada'}
                   />
                 </div>
@@ -411,16 +444,21 @@ export default function MecanicoView() {
             <h3 className="mec-card-title">📝 Actividades Realizadas</h3>
             <div className="mec-activities-grid">
               {ACTIVIDADES_RAPIDAS.map(act => {
-                const isDone = (selectedOrden.actividades || []).some(a => a.tipo === act.id);
+                const actReg = (selectedOrden.actividades || []).find(a => a.tipo === act.id);
+                const isDone = !!actReg;
                 return (
                   <button
                     key={act.id}
                     className={`mec-activity-btn ${isDone ? 'done' : ''}`}
-                    onClick={() => handleToggleActividad(selectedOrden.id, act.id)}
+                    onClick={() => isDone
+                      ? handleEliminarActividad(selectedOrden.id, act.id, act.label)
+                      : handleToggleActividad(selectedOrden.id, act.id)
+                    }
                     disabled={selectedOrden.estado === 'terminada'}
                   >
                     <span className="mec-act-icon">{isDone ? '✅' : act.icon}</span>
                     <span className="mec-act-label">{act.label}</span>
+                    {isDone && <span className="mec-act-delete">✕ quitar</span>}
                   </button>
                 );
               })}
@@ -447,28 +485,33 @@ export default function MecanicoView() {
               </div>
             )}
 
-            {/* Bitácora */}
-            {(selectedOrden.bitacora || []).length > 0 && (
+            {/* Bitácora — solo marcar y notas, sin desmarcar */}
+            {(selectedOrden.bitacora || []).filter(e => e.accion !== 'desmarcar').length > 0 && (
               <div className="mec-bitacora">
                 <h4 className="mec-bitacora-title">📖 Bitácora</h4>
                 <div className="mec-bitacora-list">
-                  {[...(selectedOrden.bitacora || [])].reverse().map(entry => (
-                    <div key={entry.id} className={`mec-bitacora-item ${entry.accion}`}>
-                      <span className="mec-bitacora-time">{formatTime(entry.createdAt)}</span>
-                      <span className="mec-bitacora-icon">
-                        {entry.accion === 'marcar' && '✅'}
-                        {entry.accion === 'desmarcar' && '❌'}
-                        {entry.accion === 'nota' && '📝'}
-                        {entry.accion === 'enviar_lab' && '🔬'}
-                      </span>
-                      <span className="mec-bitacora-text">
-                        {entry.accion === 'marcar' && `${entry.tipo.replace(/_/g, ' ')} marcado`}
-                        {entry.accion === 'desmarcar' && `${entry.tipo.replace(/_/g, ' ')} desmarcado`}
-                        {entry.accion === 'nota' && `Nota: ${entry.descripcion}`}
-                        {entry.accion === 'enviar_lab' && entry.descripcion}
-                      </span>
-                    </div>
-                  ))}
+                  {[...(selectedOrden.bitacora || [])]
+                    .filter(e => e.accion !== 'desmarcar')
+                    .reverse()
+                    .map(entry => {
+                      const rawDate = entry.created_at || entry.createdAt;
+                      const timeStr = rawDate ? new Date(rawDate).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+                      return (
+                        <div key={entry.id} className={`mec-bitacora-item ${entry.accion}`}>
+                          <span className="mec-bitacora-time">{timeStr}</span>
+                          <span className="mec-bitacora-icon">
+                            {entry.accion === 'marcar' && '✅'}
+                            {entry.accion === 'nota' && '📝'}
+                            {entry.accion === 'enviar_lab' && '🔬'}
+                          </span>
+                          <span className="mec-bitacora-text">
+                            {entry.accion === 'marcar' && `${(entry.tipo || '').replace(/_/g, ' ')} marcado`}
+                            {entry.accion === 'nota' && `Nota: ${entry.descripcion}`}
+                            {entry.accion === 'enviar_lab' && entry.descripcion}
+                          </span>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}
@@ -498,9 +541,9 @@ export default function MecanicoView() {
               )}
             </div>
 
-            {selectedOrden.solicitudesRepuesto.length > 0 ? (
+            {(selectedOrden.solicitudesRepuesto || []).length > 0 ? (
               <div className="mec-repuestos-list">
-                {selectedOrden.solicitudesRepuesto.map(sol => (
+                {(selectedOrden.solicitudesRepuesto || []).map(sol => (
                   <div key={sol.id} className="mec-repuesto-item">
                     <span>{sol.cantidad}x {sol.repuestoNombre}</span>
                     <span className={`badge badge-${sol.estado === 'aprobada' ? 'terminada' : sol.estado === 'rechazada' ? 'pendiente' : 'en-proceso'}`}>
@@ -540,9 +583,14 @@ export default function MecanicoView() {
 
             {(selectedOrden.fotos || []).length > 0 ? (
               <div className="mec-fotos-grid">
-                {selectedOrden.fotos.map(foto => (
+                {(selectedOrden.fotos || []).map(foto => (
                   <div key={foto.id} className="mec-foto-item">
-                    <img src={foto.dataUrl} alt="Foto O.T." />
+                    <img
+                      src={foto.data_url || foto.dataUrl}
+                      alt="Foto O.T."
+                      onClick={() => window.open(foto.data_url || foto.dataUrl, '_blank')}
+                      style={{ cursor: 'pointer' }}
+                    />
                     {selectedOrden.estado !== 'terminada' && (
                       <button
                         className="mec-foto-delete"
@@ -582,7 +630,7 @@ export default function MecanicoView() {
             <div className="modal-body">
               <p>¿Estás seguro de marcar la <strong>O.T. {String(selectedOrden.numeroOt).padStart(3, '0')}</strong> como terminada?</p>
               <p className="text-sm text-tertiary" style={{ marginTop: 'var(--space-2)' }}>
-                {selectedOrden.marcaModelo} — {selectedOrden.actividades.length} actividades realizadas
+                {selectedOrden.marcaModelo} — {(selectedOrden.actividades || []).length} actividades realizadas
               </p>
               <p className="text-sm text-tertiary" style={{ marginTop: 'var(--space-1)' }}>
                 Esta acción notificará al administrador y la O.T. pasará a tu historial.
@@ -627,9 +675,12 @@ export default function MecanicoView() {
                 <input
                   type="number"
                   className="input input-lg"
+                  inputMode="numeric"
                   min="1"
+                  placeholder="Ej: 4"
                   value={repuestoForm.cantidad}
-                  onChange={(e) => setRepuestoForm(p => ({ ...p, cantidad: parseInt(e.target.value) || 1 }))}
+                  onChange={(e) => setRepuestoForm(p => ({ ...p, cantidad: e.target.value }))}
+                  onFocus={(e) => e.target.select()}
                 />
               </div>
             </div>
@@ -641,6 +692,27 @@ export default function MecanicoView() {
                 onClick={() => handleSolicitarRepuesto(selectedOrden.id)}
               >
                 📦 Enviar Solicitud
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Activity Confirmation Modal */}
+      {deleteActConfirm && (
+        <div className="modal-overlay" onClick={() => setDeleteActConfirm(null)}>
+          <div className="modal" style={{ maxWidth: '380px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⚠️ Quitar actividad</h2>
+            </div>
+            <div className="modal-body">
+              <p>¿Quitar <strong>{deleteActConfirm.label}</strong> de las actividades realizadas?</p>
+              <p className="text-sm text-tertiary" style={{ marginTop: 'var(--space-2)' }}>Esto también la eliminará de la bitácora si fue registrada hoy.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setDeleteActConfirm(null)}>Cancelar</button>
+              <button className="btn btn-danger btn-lg" onClick={confirmEliminarActividad}>
+                ✕ Sí, quitar
               </button>
             </div>
           </div>

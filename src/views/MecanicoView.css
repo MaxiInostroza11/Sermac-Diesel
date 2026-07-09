@@ -771,3 +771,61 @@
     justify-content: space-between;
   }
 }
+
+/* --- Activity Delete Label --- */
+.mec-act-delete {
+  font-size: 10px;
+  color: var(--color-danger-400, #ef5350);
+  font-weight: var(--font-weight-semibold);
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
+.mec-activity-btn.done:hover .mec-act-delete {
+  opacity: 1;
+}
+
+/* --- Mobile input improvements --- */
+@media (max-width: 768px) {
+  /* Bigger inputs on touch devices for easier typing */
+  .mec-section-card .input,
+  .mec-section-card .input-lg {
+    font-size: 16px !important; /* prevents iOS zoom on focus */
+    padding: var(--space-3) var(--space-4);
+    min-height: 52px;
+  }
+
+  .mec-section-card textarea.input {
+    min-height: 80px;
+    font-size: 16px !important;
+  }
+
+  .mec-section-card select.input-lg {
+    font-size: 16px !important;
+  }
+
+  /* Bigger activity buttons on mobile */
+  .mec-activity-btn {
+    min-height: 80px;
+    padding: var(--space-3) var(--space-2);
+  }
+
+  /* Recepcion grid always 1 col on small touch screens */
+  .mec-recepcion-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  /* Section cards with more breathing room */
+  .mec-section-card {
+    padding: var(--space-4);
+    gap: var(--space-5);
+  }
+
+  /* Bigger back button */
+  .mec-back-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 52px;
+  }
+}
