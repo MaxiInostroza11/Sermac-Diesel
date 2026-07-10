@@ -10,6 +10,7 @@ export default function OrdenesAdmin({ onNavigate }) {
   const [filterMecanico, setFilterMecanico] = useState('todos');
   const [sortDirection, setSortDirection] = useState('desc');
   const [search, setSearch] = useState('');
+  const [previewFoto, setPreviewFoto] = useState(null); // URL de foto a ampliar
 
   // Always derive selectedOrden from live ordenes state (fixes stale reference bug)
   const selectedOrden = selectedOrdenId ? ordenes.find(o => o.id === selectedOrdenId) : null;
@@ -350,8 +351,8 @@ export default function OrdenesAdmin({ onNavigate }) {
                             <img
                               src={foto.data_url || foto.dataUrl}
                               alt="Foto O.T."
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => window.open(foto.data_url || foto.dataUrl, '_blank')}
+                              style={{ cursor: 'zoom-in' }}
+                              onClick={() => setPreviewFoto(foto.data_url || foto.dataUrl)}
                             />
                           </div>
                         ))}
@@ -378,6 +379,33 @@ export default function OrdenesAdmin({ onNavigate }) {
           ))
         )}
       </div>
+
+      {/* Photo Viewer Modal */}
+      {previewFoto && (
+        <div
+          className="modal-overlay"
+          onClick={() => setPreviewFoto(null)}
+          style={{ zIndex: 1000, background: 'rgba(0,0,0,0.92)', cursor: 'zoom-out' }}
+        >
+          <div style={{ maxWidth: '90vw', maxHeight: '90vh', position: 'relative' }} onClick={e => e.stopPropagation()}>
+            <img
+              src={previewFoto}
+              alt="Foto O.T."
+              style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: '8px', display: 'block' }}
+            />
+            <button
+              onClick={() => setPreviewFoto(null)}
+              style={{
+                position: 'absolute', top: '-40px', right: 0,
+                background: 'transparent', border: 'none', color: 'white',
+                fontSize: '28px', cursor: 'pointer', lineHeight: 1
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
