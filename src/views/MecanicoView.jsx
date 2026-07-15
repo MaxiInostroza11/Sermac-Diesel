@@ -183,8 +183,8 @@ export default function MecanicoView() {
           <div className="mec-user-badge">
             <div className="mec-user-avatar">{currentUser?.nombre?.charAt(0)}</div>
             <span className="mec-user-name">{currentUser?.nombre}</span>
-            <span className={`mec-carga-badge ${alMaximo ? 'carga-max' : ''}`}>
-              {trabajosActivos.length}/{MAX_TRABAJOS_ACTIVOS}
+            <span className="mec-carga-badge">
+              {trabajosActivos.length} trabajo{trabajosActivos.length !== 1 ? 's' : ''}
             </span>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={logout}>🚪</button>
@@ -402,79 +402,79 @@ export default function MecanicoView() {
             {selectedOrden.estado === 'terminada' && (
               <span className="badge badge-terminada" style={{ padding: '8px 16px', fontSize: '14px' }}>🟢 Terminada</span>
             )}
-          </div>
 
-          {/* Preview Job Modal — antes de tomar un trabajo */}
-          {previewOrden && (
-            <div className="modal-overlay" onClick={() => setPreviewOrden(null)}>
-              <div className="modal" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h2>
-                    {previewOrden.tipo === 'laboratorio_directo' ? '🔬 ' : '🚗 '}
-                    O.T. {String(previewOrden.numeroOt).padStart(3, '0')}
-                  </h2>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setPreviewOrden(null)}>✕</button>
-                </div>
-                <div className="modal-body">
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-                      <div>
-                        <span className="text-xs text-tertiary">Cliente</span>
-                        <p style={{ fontWeight: 600 }}>{previewOrden.clienteNombre || '—'}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-tertiary">Vehículo / Componente</span>
-                        <p style={{ fontWeight: 600 }}>{previewOrden.marcaModelo}</p>
-                      </div>
-                      {previewOrden.patenteVehiculo && (
-                        <div>
-                          <span className="text-xs text-tertiary">Patente</span>
-                          <p style={{ fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
-                            {previewOrden.patenteVehiculo}
-                          </p>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-xs text-tertiary">Tipo</span>
-                        <p>{previewOrden.tipo === 'laboratorio_directo' ? '🔬 Laboratorio directo' : '🚗 Vehículo completo'}</p>
-                      </div>
+      {/* Preview Job Modal — antes de tomar un trabajo */}
+      {previewOrden && (
+        <div className="modal-overlay" onClick={() => setPreviewOrden(null)}>
+          <div className="modal" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                {previewOrden.tipo === 'laboratorio_directo' ? '🔬 ' : '🚗 '}
+                O.T. {String(previewOrden.numeroOt).padStart(3, '0')}
+              </h2>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPreviewOrden(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                  <div>
+                    <span className="text-xs text-tertiary">Cliente</span>
+                    <p style={{ fontWeight: 600 }}>{previewOrden.clienteNombre || '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-tertiary">Vehículo / Componente</span>
+                    <p style={{ fontWeight: 600 }}>{previewOrden.marcaModelo}</p>
+                  </div>
+                  {previewOrden.patenteVehiculo && (
+                    <div>
+                      <span className="text-xs text-tertiary">Patente</span>
+                      <p style={{ fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                        {previewOrden.patenteVehiculo}
+                      </p>
                     </div>
-
-                    {(previewOrden.servicios || []).length > 0 && (
-                      <div>
-                        <span className="text-xs text-tertiary">Servicios</span>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
-                          {previewOrden.servicios.map((s, i) => (
-                            <span key={i} className="badge badge-en-proceso">
-                              {s.cantidad}x {getSistemaLabel(s.sistema)}{s.especificar ? ` — ${s.especificar}` : ''}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {previewOrden.observaciones && (
-                      <div>
-                        <span className="text-xs text-tertiary">Observaciones del cliente</span>
-                        <p style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)' }}>
-                          "{previewOrden.observaciones}"
-                        </p>
-                      </div>
-                    )}
+                  )}
+                  <div>
+                    <span className="text-xs text-tertiary">Tipo</span>
+                    <p>{previewOrden.tipo === 'laboratorio_directo' ? '🔬 Laboratorio directo' : '🚗 Vehículo completo'}</p>
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button className="btn btn-ghost" onClick={() => setPreviewOrden(null)}>Cerrar</button>
-                  <button
-                    className="btn btn-accent btn-lg"
-                    onClick={() => handleTomarTrabajo(previewOrden.id)}
-                  >
-                    👋 TOMAR TRABAJO
-                  </button>
-                </div>
+
+                {(previewOrden.servicios || []).length > 0 && (
+                  <div>
+                    <span className="text-xs text-tertiary">Servicios</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+                      {previewOrden.servicios.map((s, i) => (
+                        <span key={i} className="badge badge-en-proceso">
+                          {s.cantidad}x {getSistemaLabel(s.sistema)}{s.especificar ? ` — ${s.especificar}` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {previewOrden.observaciones && (
+                  <div>
+                    <span className="text-xs text-tertiary">Observaciones del cliente</span>
+                    <p style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)' }}>
+                      "{previewOrden.observaciones}"
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setPreviewOrden(null)}>Cerrar</button>
+              <button
+                className="btn btn-accent btn-lg"
+                onClick={() => handleTomarTrabajo(previewOrden.id)}
+              >
+                👋 TOMAR TRABAJO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
 
           {/* Reception Data — SOLO para tipo 'cliente' (camioneta completa) */}
           {selectedOrden.tipo === 'cliente' && (
