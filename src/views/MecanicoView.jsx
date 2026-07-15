@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { useApp } from '../context/AppContext';
-import { ACTIVIDADES_RAPIDAS, NIVELES_COMBUSTIBLE, MAX_TRABAJOS_ACTIVOS } from '../data/mockData';
+import { ACTIVIDADES_RAPIDAS, NIVELES_COMBUSTIBLE } from '../data/mockData';
 import './MecanicoView.css';
 
 export default function MecanicoView() {
@@ -20,7 +20,8 @@ export default function MecanicoView() {
   const [notaTexto, setNotaTexto] = useState('');
   const [historialFiltro, setHistorialFiltro] = useState('semana');
   const [takenJobId, setTakenJobId] = useState(null);
-  const [deleteActConfirm, setDeleteActConfirm] = useState(null); // { ordenId, tipo, label }
+  const [deleteActConfirm, setDeleteActConfirm] = useState(null);
+  const [previewOrden, setPreviewOrden] = useState(null); // OT para modal preview antes de tomar
   // Local edits para km/danos para evitar llamar Supabase en cada tecla
   const [localKm, setLocalKm] = useState({});
   const [localDanos, setLocalDanos] = useState({});
@@ -38,7 +39,7 @@ export default function MecanicoView() {
   );
 
   const trabajosActivos = getTrabajosMecanico(currentUser?.id);
-  const alMaximo = trabajosActivos.length >= MAX_TRABAJOS_ACTIVOS;
+  // Sin límite de trabajos activos
 
   // Completed jobs with time filter
   const misCompletados = useMemo(() => {
@@ -78,6 +79,7 @@ export default function MecanicoView() {
   const formatDate = (d) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   const handleTomarTrabajo = async (ordenId) => {
+    setPreviewOrden(null); // cerrar modal preview si está abierto
     const result = await tomarTrabajo(ordenId);
     if (result) {
       setTakenJobId(ordenId);
@@ -274,19 +276,35 @@ export default function MecanicoView() {
                     className={`mec-inbox-item ${takenJobId === orden.id ? 'mec-inbox-taken' : ''}`}
                   >
                     <div className="mec-inbox-info">
-                      <span className="mec-job-ot">O.T. {String(orden.numeroOt).padStart(3, '0')}</span>
-                      <span className="mec-job-vehicle">{orden.marcaModelo}</span>
-                      <span className="text-xs text-tertiary">
-                        {(orden.servicios || []).map(s => `${s.cantidad}x ${getSistemaLabel(s.sistema)}`).join(', ')}
+                      <span className="mec-job-ot">
+                        {orden.tipo === 'laboratorio_directo' ? '🔬 ' : ''}
+                        O.T. {String(orden.numeroOt).padStart(3, '0')}
                       </span>
+                      <span className="mec-job-vehicle">{orden.marcaModelo}</span>
+                      {orden.clienteNombre && (
+                        <span className="text-xs text-tertiary">👤 {orden.clienteNombre}</span>
+                      )}
+                      {orden.observaciones && (
+                        <span className="text-xs text-tertiary" style={{ fontStyle: 'italic' }}>
+                          {orden.observaciones.slice(0, 60)}{orden.observaciones.length > 60 ? '...' : ''}
+                        </span>
+                      )}
                     </div>
-                    <button
-                      className={`btn btn-touch ${alMaximo ? 'btn-ghost' : 'btn-accent'}`}
-                      onClick={() => handleTomarTrabajo(orden.id)}
-                      disabled={alMaximo}
-                    >
-                      {alMaximo ? `🔒 ${MAX_TRABAJOS_ACTIVOS}/${MAX_TRABAJOS_ACTIVOS}` : '👋 TOMAR'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
+                      <button
+                        className="btn btn-ghost btn-touch"
+                        onClick={() => setPreviewOrden(orden)}
+                        title="Ver detalles"
+                      >
+                        👁️ Ver
+                      </button>
+                      <button
+                        className="btn btn-accent btn-touch"
+                        onClick={() => handleTomarTrabajo(orden.id)}
+                      >
+                        👋 TOMAR
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -386,16 +404,82 @@ export default function MecanicoView() {
             )}
           </div>
 
-          {selectedOrden.observaciones && (
-            <div className="mec-obs-banner">
-              💬 {selectedOrden.observaciones}
+          {/* Preview Job Modal — antes de tomar un trabajo */}
+          {previewOrden && (
+            <div className="modal-overlay" onClick={() => setPreviewOrden(null)}>
+              <div className="modal" style={{ maxWidth: '520px' }} onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h2>
+                    {previewOrden.tipo === 'laboratorio_directo' ? '🔬 ' : '🚗 '}
+                    O.T. {String(previewOrden.numeroOt).padStart(3, '0')}
+                  </h2>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPreviewOrden(null)}>✕</button>
+                </div>
+                <div className="modal-body">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
+                      <div>
+                        <span className="text-xs text-tertiary">Cliente</span>
+                        <p style={{ fontWeight: 600 }}>{previewOrden.clienteNombre || '—'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-tertiary">Vehículo / Componente</span>
+                        <p style={{ fontWeight: 600 }}>{previewOrden.marcaModelo}</p>
+                      </div>
+                      {previewOrden.patenteVehiculo && (
+                        <div>
+                          <span className="text-xs text-tertiary">Patente</span>
+                          <p style={{ fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+                            {previewOrden.patenteVehiculo}
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-xs text-tertiary">Tipo</span>
+                        <p>{previewOrden.tipo === 'laboratorio_directo' ? '🔬 Laboratorio directo' : '🚗 Vehículo completo'}</p>
+                      </div>
+                    </div>
+
+                    {(previewOrden.servicios || []).length > 0 && (
+                      <div>
+                        <span className="text-xs text-tertiary">Servicios</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginTop: 'var(--space-1)' }}>
+                          {previewOrden.servicios.map((s, i) => (
+                            <span key={i} className="badge badge-en-proceso">
+                              {s.cantidad}x {getSistemaLabel(s.sistema)}{s.especificar ? ` — ${s.especificar}` : ''}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {previewOrden.observaciones && (
+                      <div>
+                        <span className="text-xs text-tertiary">Observaciones del cliente</span>
+                        <p style={{ fontStyle: 'italic', color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)' }}>
+                          "{previewOrden.observaciones}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-ghost" onClick={() => setPreviewOrden(null)}>Cerrar</button>
+                  <button
+                    className="btn btn-accent btn-lg"
+                    onClick={() => handleTomarTrabajo(previewOrden.id)}
+                  >
+                    👋 TOMAR TRABAJO
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Reception Data — Only for non-internal OTs */}
-          {selectedOrden.tipo !== 'interna' && (
+          {/* Reception Data — SOLO para tipo 'cliente' (camioneta completa) */}
+          {selectedOrden.tipo === 'cliente' && (
             <div className="mec-section-card">
-              <h3 className="mec-card-title">🚗 Datos de Recepción</h3>
+              <h3 className="mec-card-title">🚗 Datos de Recepcin</h3>
               <div className="mec-recepcion-grid">
                 <div className="input-group">
                   <label className="input-label">Kilometraje</label>
@@ -439,174 +523,167 @@ export default function MecanicoView() {
             </div>
           )}
 
-          {/* Quick Activities — Toggle */}
-          <div className="mec-section-card">
-            <h3 className="mec-card-title">📝 Actividades Realizadas</h3>
-            <div className="mec-activities-grid">
-              {ACTIVIDADES_RAPIDAS.map(act => {
-                const actReg = (selectedOrden.actividades || []).find(a => a.tipo === act.id);
-                const isDone = !!actReg;
-                return (
-                  <button
-                    key={act.id}
-                    className={`mec-activity-btn ${isDone ? 'done' : ''}`}
-                    onClick={() => isDone
-                      ? handleEliminarActividad(selectedOrden.id, act.id, act.label)
-                      : handleToggleActividad(selectedOrden.id, act.id)
-                    }
-                    disabled={selectedOrden.estado === 'terminada'}
-                  >
-                    <span className="mec-act-icon">{isDone ? '✅' : act.icon}</span>
-                    <span className="mec-act-label">{act.label}</span>
-                    {isDone && <span className="mec-act-delete">✕ quitar</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Free text note */}
-            {selectedOrden.estado !== 'terminada' && (
-              <div className="mec-note-input">
-                <input
-                  type="text"
-                  className="input input-lg"
-                  placeholder="Agregar nota libre..."
-                  value={notaTexto}
-                  onChange={(e) => setNotaTexto(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAgregarNota(selectedOrden.id)}
-                />
-                <button
-                  className="btn btn-primary btn-touch"
-                  onClick={() => handleAgregarNota(selectedOrden.id)}
-                  disabled={!notaTexto.trim()}
-                >
-                  ➕
-                </button>
-              </div>
-            )}
-
-            {/* Bitácora — solo marcar y notas, sin desmarcar */}
-            {(selectedOrden.bitacora || []).filter(e => e.accion !== 'desmarcar').length > 0 && (
-              <div className="mec-bitacora">
-                <h4 className="mec-bitacora-title">📖 Bitácora</h4>
-                <div className="mec-bitacora-list">
-                  {[...(selectedOrden.bitacora || [])]
-                    .filter(e => e.accion !== 'desmarcar')
-                    .reverse()
-                    .map(entry => {
-                      const rawDate = entry.created_at || entry.createdAt;
-                      const timeStr = rawDate ? new Date(rawDate).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-                      return (
-                        <div key={entry.id} className={`mec-bitacora-item ${entry.accion}`}>
-                          <span className="mec-bitacora-time">{timeStr}</span>
-                          <span className="mec-bitacora-icon">
-                            {entry.accion === 'marcar' && '✅'}
-                            {entry.accion === 'nota' && '📝'}
-                            {entry.accion === 'enviar_lab' && '🔬'}
-                          </span>
-                          <span className="mec-bitacora-text">
-                            {entry.accion === 'marcar' && `${(entry.tipo || '').replace(/_/g, ' ')} marcado`}
-                            {entry.accion === 'nota' && `Nota: ${entry.descripcion}`}
-                            {entry.accion === 'enviar_lab' && entry.descripcion}
-                          </span>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Send to Lab */}
-          {selectedOrden.tipo !== 'interna' && selectedOrden.estado !== 'terminada' && (
+          {/* Actividades, Notas, Bitacora, Lab — SOLO para 'interna' (laboratorio) */}
+          {selectedOrden.tipo === 'interna' && (
             <div className="mec-section-card">
-              <div className="mec-card-header">
-                <h3 className="mec-card-title">🔬 Laboratorio</h3>
-                <button className="btn btn-accent btn-touch" onClick={() => setShowLabModal(true)}>
-                  🔬 Enviar a Lab
-                </button>
+              <h3 className="mec-card-title">📝 Actividades Realizadas</h3>
+              <div className="mec-activities-grid">
+                {ACTIVIDADES_RAPIDAS.map(act => {
+                  const actReg = (selectedOrden.actividades || []).find(a => a.tipo === act.id);
+                  const isDone = !!actReg;
+                  return (
+                    <button
+                      key={act.id}
+                      className={`mec-activity-btn ${isDone ? 'done' : ''}`}
+                      onClick={() => isDone
+                        ? handleEliminarActividad(selectedOrden.id, act.id, act.label)
+                        : handleToggleActividad(selectedOrden.id, act.id)
+                      }
+                      disabled={selectedOrden.estado === 'terminada'}
+                    >
+                      <span className="mec-act-icon">{isDone ? '✅' : act.icon}</span>
+                      <span className="mec-act-label">{act.label}</span>
+                      {isDone && <span className="mec-act-delete">✕ quitar</span>}
+                    </button>
+                  );
+                })}
               </div>
-              <p className="text-sm text-tertiary">Envía inyectores/bomba al laboratorio como O.T. interna</p>
+
+              {/* Free text note */}
+              {selectedOrden.estado !== 'terminada' && (
+                <div className="mec-note-input">
+                  <input
+                    type="text"
+                    className="input input-lg"
+                    placeholder="Agregar nota libre..."
+                    value={notaTexto}
+                    onChange={(e) => setNotaTexto(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAgregarNota(selectedOrden.id)}
+                  />
+                  <button
+                    className="btn btn-primary btn-touch"
+                    onClick={() => handleAgregarNota(selectedOrden.id)}
+                    disabled={!notaTexto.trim()}
+                  >
+                    ➕
+                  </button>
+                </div>
+              )}
+
+              {/* Bitácora */}
+              {(selectedOrden.bitacora || []).filter(e => e.accion !== 'desmarcar').length > 0 && (
+                <div className="mec-bitacora">
+                  <h4 className="mec-bitacora-title">📖 Bitácora</h4>
+                  <div className="mec-bitacora-list">
+                    {[...(selectedOrden.bitacora || [])]
+                      .filter(e => e.accion !== 'desmarcar')
+                      .reverse()
+                      .map(entry => {
+                        const rawDate = entry.created_at || entry.createdAt;
+                        const timeStr = rawDate ? new Date(rawDate).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+                        return (
+                          <div key={entry.id} className={`mec-bitacora-item ${entry.accion}`}>
+                            <span className="mec-bitacora-time">{timeStr}</span>
+                            <span className="mec-bitacora-icon">
+                              {entry.accion === 'marcar' && '✅'}
+                              {entry.accion === 'nota' && '📝'}
+                              {entry.accion === 'enviar_lab' && '🔬'}
+                            </span>
+                            <span className="mec-bitacora-text">
+                              {entry.accion === 'marcar' && `${(entry.tipo || '').replace(/_/g, ' ')} marcado`}
+                              {entry.accion === 'nota' && `Nota: ${entry.descripcion}`}
+                              {entry.accion === 'enviar_lab' && entry.descripcion}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Parts Request */}
-          <div className="mec-section-card">
-            <div className="mec-card-header">
-              <h3 className="mec-card-title">📦 Repuestos</h3>
-              {selectedOrden.estado !== 'terminada' && (
-                <button className="btn btn-accent btn-touch" onClick={() => setShowRepuestoModal(true)}>
-                  ➕ Solicitar
-                </button>
+          {/* Repuestos — SOLO para laboratorio directo e interna */}
+          {(selectedOrden.tipo === 'laboratorio_directo' || selectedOrden.tipo === 'interna') && (
+            <div className="mec-section-card">
+              <div className="mec-card-header">
+                <h3 className="mec-card-title">📦 Repuestos</h3>
+                {selectedOrden.estado !== 'terminada' && (
+                  <button className="btn btn-accent btn-touch" onClick={() => setShowRepuestoModal(true)}>
+                    ➕ Solicitar
+                  </button>
+                )}
+              </div>
+
+              {(selectedOrden.solicitudesRepuesto || []).length > 0 ? (
+                <div className="mec-repuestos-list">
+                  {(selectedOrden.solicitudesRepuesto || []).map(sol => (
+                    <div key={sol.id} className="mec-repuesto-item">
+                      <span>{sol.cantidad}x {sol.repuestoNombre}</span>
+                      <span className={`badge badge-${sol.estado === 'aprobada' ? 'terminada' : sol.estado === 'rechazada' ? 'pendiente' : 'en-proceso'}`}>
+                        {sol.estado === 'pendiente' && '⏳ Esperando'}
+                        {sol.estado === 'aprobada' && '✅ Aprobado'}
+                        {sol.estado === 'rechazada' && '❌ Rechazado'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-tertiary">Sin repuestos solicitados</p>
               )}
             </div>
+          )}
 
-            {(selectedOrden.solicitudesRepuesto || []).length > 0 ? (
-              <div className="mec-repuestos-list">
-                {(selectedOrden.solicitudesRepuesto || []).map(sol => (
-                  <div key={sol.id} className="mec-repuesto-item">
-                    <span>{sol.cantidad}x {sol.repuestoNombre}</span>
-                    <span className={`badge badge-${sol.estado === 'aprobada' ? 'terminada' : sol.estado === 'rechazada' ? 'pendiente' : 'en-proceso'}`}>
-                      {sol.estado === 'pendiente' && '⏳ Esperando'}
-                      {sol.estado === 'aprobada' && '✅ Aprobado'}
-                      {sol.estado === 'rechazada' && '❌ Rechazado'}
-                    </span>
-                  </div>
-                ))}
+          {/* Fotos — SOLO para tipo 'cliente' (camioneta completa) */}
+          {selectedOrden.tipo === 'cliente' && (
+            <div className="mec-section-card">
+              <div className="mec-card-header">
+                <h3 className="mec-card-title">📸 Fotos del Vehículo</h3>
+                {selectedOrden.estado !== 'terminada' && (
+                  <button
+                    className="btn btn-primary btn-touch"
+                    onClick={() => fotoInputRef.current?.click()}
+                  >
+                    📷 Tomar Foto
+                  </button>
+                )}
+                <input
+                  ref={fotoInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFotoCapture(e, selectedOrden.id)}
+                />
               </div>
-            ) : (
-              <p className="text-sm text-tertiary">Sin repuestos solicitados</p>
-            )}
-          </div>
 
-          {/* Photos */}
-          <div className="mec-section-card">
-            <div className="mec-card-header">
-              <h3 className="mec-card-title">📸 Fotos del Vehículo</h3>
-              {selectedOrden.estado !== 'terminada' && (
-                <button
-                  className="btn btn-primary btn-touch"
-                  onClick={() => fotoInputRef.current?.click()}
-                >
-                  📷 Tomar Foto
-                </button>
+              {(selectedOrden.fotos || []).length > 0 ? (
+                <div className="mec-fotos-grid">
+                  {(selectedOrden.fotos || []).map(foto => (
+                    <div key={foto.id} className="mec-foto-item">
+                      <img
+                        src={foto.data_url || foto.dataUrl}
+                        alt="Foto O.T."
+                        onClick={() => window.open(foto.data_url || foto.dataUrl, '_blank')}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      {selectedOrden.estado !== 'terminada' && (
+                        <button
+                          className="mec-foto-delete"
+                          onClick={() => eliminarFoto(selectedOrden.id, foto.id)}
+                          title="Eliminar foto"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-tertiary">Sin fotos. Toma fotos del vehículo, daños, motor, etc.</p>
               )}
-              <input
-                ref={fotoInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                style={{ display: 'none' }}
-                onChange={(e) => handleFotoCapture(e, selectedOrden.id)}
-              />
             </div>
-
-            {(selectedOrden.fotos || []).length > 0 ? (
-              <div className="mec-fotos-grid">
-                {(selectedOrden.fotos || []).map(foto => (
-                  <div key={foto.id} className="mec-foto-item">
-                    <img
-                      src={foto.data_url || foto.dataUrl}
-                      alt="Foto O.T."
-                      onClick={() => window.open(foto.data_url || foto.dataUrl, '_blank')}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    {selectedOrden.estado !== 'terminada' && (
-                      <button
-                        className="mec-foto-delete"
-                        onClick={() => eliminarFoto(selectedOrden.id, foto.id)}
-                        title="Eliminar foto"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-tertiary">Sin fotos. Toma fotos del vehículo, daños, motor, etc.</p>
-            )}
-          </div>
+          )}
 
           {/* Mark as Done */}
           {selectedOrden.estado !== 'terminada' && (

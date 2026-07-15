@@ -89,7 +89,12 @@ export default function NuevaOT({ onNavigate }) {
     }));
   };
 
-  const isValid = form.clienteNombre.trim() && (ingresoLab ? form.descripcionComponente.trim() : form.marcaModelo.trim()) && form.servicios.length > 0;
+  // Camioneta no necesita servicios — solo laboratorio directo
+  const isValid = form.clienteNombre.trim() && (
+    ingresoLab
+      ? form.descripcionComponente.trim() && form.servicios.length > 0
+      : form.marcaModelo.trim()
+  );
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -232,66 +237,72 @@ export default function NuevaOT({ onNavigate }) {
             </div>
           )}
 
-          <h2 className="form-section-title" style={{ marginTop: 'var(--space-6)' }}>🔧 Servicios</h2>
 
-          <div className="servicios-list">
-            {form.servicios.map((servicio, idx) => (
-              <div key={idx} className="servicio-row">
-                <div className="input-group" style={{ flex: 2 }}>
-                  <label className="input-label">Sistema / Operación</label>
-                  <select
-                    className="input"
-                    value={servicio.sistema}
-                    onChange={(e) => updateServicio(idx, 'sistema', e.target.value)}
-                  >
-                    {SISTEMAS_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
+          {/* Servicios — SOLO para ingreso directo a laboratorio */}
+          {ingresoLab && (
+            <>
+              <h2 className="form-section-title" style={{ marginTop: 'var(--space-6)' }}>🔧 Componentes / Servicios</h2>
 
-                {(servicio.sistema === 'otro' || servicio.sistema === 'vehiculo_completo') && (
-                  <div className="input-group" style={{ flex: 2 }}>
-                    <label className="input-label">
-                      {servicio.sistema === 'vehiculo_completo' ? 'Tipo de vehículo (auto, jeep, furgón, tractor...)' : 'Especificar'}
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder={servicio.sistema === 'vehiculo_completo' ? 'Ej: Furgón, Tractor, Jeep...' : 'Detalle del servicio'}
-                      value={servicio.especificar}
-                      onChange={(e) => updateServicio(idx, 'especificar', e.target.value)}
-                    />
+              <div className="servicios-list">
+                {form.servicios.map((servicio, idx) => (
+                  <div key={idx} className="servicio-row">
+                    <div className="input-group" style={{ flex: 2 }}>
+                      <label className="input-label">Sistema / Operación</label>
+                      <select
+                        className="input"
+                        value={servicio.sistema}
+                        onChange={(e) => updateServicio(idx, 'sistema', e.target.value)}
+                      >
+                        {SISTEMAS_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {(servicio.sistema === 'otro' || servicio.sistema === 'vehiculo_completo') && (
+                      <div className="input-group" style={{ flex: 2 }}>
+                        <label className="input-label">
+                          {servicio.sistema === 'vehiculo_completo' ? 'Tipo de vehículo' : 'Especificar'}
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          placeholder={servicio.sistema === 'vehiculo_completo' ? 'Ej: Furgón, Tractor, Jeep...' : 'Detalle del servicio'}
+                          value={servicio.especificar}
+                          onChange={(e) => updateServicio(idx, 'especificar', e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    <div className="input-group" style={{ flex: 0, minWidth: '100px' }}>
+                      <label className="input-label">Cantidad</label>
+                      <input
+                        type="number"
+                        className="input"
+                        min="1"
+                        value={servicio.cantidad}
+                        onChange={(e) => updateServicio(idx, 'cantidad', parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+
+                    {form.servicios.length > 1 && (
+                      <button
+                        className="btn btn-ghost btn-sm servicio-remove"
+                        onClick={() => removeServicio(idx)}
+                        title="Eliminar servicio"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
-                )}
-
-                <div className="input-group" style={{ flex: 0, minWidth: '100px' }}>
-                  <label className="input-label">Cantidad</label>
-                  <input
-                    type="number"
-                    className="input"
-                    min="1"
-                    value={servicio.cantidad}
-                    onChange={(e) => updateServicio(idx, 'cantidad', parseInt(e.target.value) || 1)}
-                  />
-                </div>
-
-                {form.servicios.length > 1 && (
-                  <button
-                    className="btn btn-ghost btn-sm servicio-remove"
-                    onClick={() => removeServicio(idx)}
-                    title="Eliminar servicio"
-                  >
-                    ✕
-                  </button>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
 
-          <button className="btn btn-ghost btn-sm" onClick={addServicio} style={{ alignSelf: 'flex-start' }}>
-            ➕ Agregar otro servicio
-          </button>
+              <button className="btn btn-ghost btn-sm" onClick={addServicio} style={{ alignSelf: 'flex-start' }}>
+                ➕ Agregar otro componente
+              </button>
+            </>
+          )}
 
           <h2 className="form-section-title" style={{ marginTop: 'var(--space-6)' }}>👷 Asignación (opcional)</h2>
 
