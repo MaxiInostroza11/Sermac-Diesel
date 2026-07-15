@@ -207,7 +207,6 @@ export default function MecanicoView() {
             <h2 className="mec-section-title">
               🔧 Mis Trabajos Activos
               <span className="mec-count">{misTrabajos.length}</span>
-              {alMaximo && <span className="badge badge-pendiente" style={{ marginLeft: '8px' }}>MÁXIMO</span>}
             </h2>
 
             {misTrabajos.length === 0 ? (
